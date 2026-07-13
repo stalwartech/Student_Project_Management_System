@@ -53,7 +53,9 @@ const authSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
-})
+},
+{timestamps: true}
+)
 
 const authModel = mongoose.model('auth', authSchema);
 

@@ -1,4 +1,4 @@
-const 
+const mongoose = require('mongoose');
 const taskSchema = new mongoose.Schema({
     title:{
         type: String,
@@ -20,7 +20,7 @@ const taskSchema = new mongoose.Schema({
         type: Date
     },
     chapter:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'chapter',
         required: true
     },
@@ -28,7 +28,7 @@ const taskSchema = new mongoose.Schema({
         type: String,
     },
     createdBy:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "auth"
     },
     createdAt:{
@@ -38,7 +38,7 @@ const taskSchema = new mongoose.Schema({
         type: Date,
     },
     updatedBy:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "auth"
     }
 },

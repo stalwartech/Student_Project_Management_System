@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const chapterSubmissionSchema = new mongoose.Schema({
     chapter:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "chapter"
     },
     PDFFile:{
@@ -11,7 +11,7 @@ const chapterSubmissionSchema = new mongoose.Schema({
         type: Number
     },
     submittedBy:{
-        type: Schema.Type.ObjectId
+        type: mongoose.Schema.Types.ObjectId,
     },
     submittedAt:{
         type: Date

@@ -20,7 +20,7 @@ const chapterSchema = new mongoose.Schema({
         type: String
     },
     project:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'project',
         required: true
     },
@@ -28,7 +28,7 @@ const chapterSchema = new mongoose.Schema({
         type: String,
     },
     createdBy:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "auth"
     },
     createdAt:{

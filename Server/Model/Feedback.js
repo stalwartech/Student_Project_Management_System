@@ -7,15 +7,15 @@ const feedbackSchema = new mongoose.Schema({
         type: Date
     },
     createdBy:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "auth"
     },
     project:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "project"
     },
     project_submission:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "project_submission"
     },
     status:{

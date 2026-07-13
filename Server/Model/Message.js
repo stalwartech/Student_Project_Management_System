@@ -10,11 +10,11 @@ const messageSchema = new mongoose.Schema({
         enum: ["Private", "Project Group"]
     },
     attachment:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "attachment"
     }
 },
-{timeStamps: true}
+{timestamps: true}
 );
 
 const message = mongoose.model('message', messageSchema);

@@ -57,7 +57,7 @@ const projectSchema = new mongoose.Schema({
         required: true
     },
     projectLeader:{
-        type: Schema.types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "auth",
     },
     updatedAt:{

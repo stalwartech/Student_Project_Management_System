@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
 const notificationSchema = new mongoose.Schema({
     sender:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "auth"
     },
     recipient:{
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "auth"
     },
     title:{
