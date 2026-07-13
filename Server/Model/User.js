@@ -53,6 +53,28 @@ const authSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
+    isActivated:{
+        type: Boolean,
+        default: false
+    },
+    isDeactivated:{
+        type:  Boolean,
+        default: false,
+    },
+    mustChangePassword:{
+        type: Boolean,
+        default: true,
+    },
+    lastLoginAt:{
+        type: Date,
+    },
+    passwordChangedAt:{
+        type: Date,
+    },
+    failedLoginAttempts:{
+        type: Number,
+        default: 0
+    }
 },
 {timestamps: true}
 )
