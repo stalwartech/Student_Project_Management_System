@@ -1,0 +1,2 @@
+// markAsread
+// markAllAsRead
