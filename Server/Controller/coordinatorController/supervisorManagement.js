@@ -1,0 +1,4 @@
+// getSupervisors
+// getSingleSupervisor
+// deactivateSupervisor
+// actiavteSupervisor
