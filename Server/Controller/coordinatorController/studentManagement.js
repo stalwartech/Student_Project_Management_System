@@ -1,4 +1,0 @@
-// getStudents
-// getSingleStudent
-// deactivateStudent
-// activateStudent

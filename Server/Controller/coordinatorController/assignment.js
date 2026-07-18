@@ -1,4 +1,0 @@
-// assignSupervisor
-// changeSupervisor
-// assignStudents
-// removeStudent

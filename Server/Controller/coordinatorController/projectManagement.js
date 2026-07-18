@@ -1,3 +1,0 @@
-// createProject
-// updateProject
-// deleteProject

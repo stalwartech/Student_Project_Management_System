@@ -1,4 +1,0 @@
-// createChecklist
-// updateChecklist 
-// deletChecklist 
-// markChecklist    

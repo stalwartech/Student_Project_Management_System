@@ -1,4 +1,0 @@
-// getAssignedProject
-// getProjectProgress
-// lockProject
-// unlockProject

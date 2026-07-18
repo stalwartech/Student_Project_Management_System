@@ -1,3 +1,0 @@
-// getAllProjects
-// searchProject
-// filterProject

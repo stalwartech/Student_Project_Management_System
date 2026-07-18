@@ -1,4 +1,0 @@
-//sendOTP 
-// verifyOTP
-// resendOTP
-// expireOTP
