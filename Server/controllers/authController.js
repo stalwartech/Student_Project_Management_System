@@ -236,9 +236,12 @@ const login = asyncHandler(async (req, res) => {
 
   await logActivity({ actor: user._id, action: "login", entityType: "user", entityId: user._id });
 
+  const safeUser = user.toObject();
+  delete safeUser.password;
+
   return sendSuccess(res, 200, "Login successful", {
     accessToken,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    user: safeUser,
   });
 });
 

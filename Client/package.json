@@ -4,8 +4,16 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/dev.mjs",
+    "dev:launcher": "vite --port 5172 --strictPort",
+    "dev:coordinator": "npm --prefix src/coordinator run dev",
+    "dev:student": "npm --prefix src/student run dev",
+    "dev:supervisor": "npm --prefix src/supervisor run dev",
+    "build": "npm run build:launcher && npm run build:coordinator && npm run build:student && npm run build:supervisor",
+    "build:launcher": "vite build",
+    "build:coordinator": "npm --prefix src/coordinator run build",
+    "build:student": "npm --prefix src/student run build",
+    "build:supervisor": "npm --prefix src/supervisor run build",
     "lint": "oxlint",
     "preview": "vite preview"
   },

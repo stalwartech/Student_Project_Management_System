@@ -6,12 +6,28 @@ const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const path = require("path");
 
-const connectDB = require("./config/db");
+const connectDB = require("./Config/database");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
+const { verifyEmailTransport } = require("./utils/sendEmail");
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+const allowedOrigins = new Set([
+  process.env.CLIENT_URL,
+  "http://localhost:5172",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+].filter(Boolean));
+
+app.use(cors({
+  origin(origin, callback) {
+    // Non-browser requests have no Origin header; permit them for local tooling.
+    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -24,7 +40,7 @@ app.get("/api/health", (req, res) => res.json({ success: true, message: "SPMS AP
 
 const API_PREFIX = "/api";
 
-app.use(API_PREFIX, require("./routes/authRoute"));
+app.use(`${API_PREFIX}/auth`, require("./routes/authRoute"));
 app.use(API_PREFIX, require("./routes/academicRoute"));
 app.use(API_PREFIX, require("./routes/activityRoute"));
 app.use(API_PREFIX, require("./routes/allocationRoute"));
@@ -47,6 +63,7 @@ app.use(API_PREFIX, require("./routes/supervisorManagementRoute"));
 app.use(API_PREFIX, require("./routes/taskRoute"));
 // projectManagementRoute.js was an empty duplicate of projectRoutes.js - dropped, see README.
 
+
 app.use(notFound);
 app.use(errorHandler);
 
@@ -54,7 +71,16 @@ const PORT = process.env.PORT || 5000;
 
 const start = async () => {
   await connectDB();
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    verifyEmailTransport().then(({ ready, reason }) => {
+      if (ready) {
+        console.log("Email transporter is ready to send messages.");
+      } else {
+        console.warn(`Email transporter is not ready: ${reason}`);
+      }
+    });
+  });
 };
 
 start();

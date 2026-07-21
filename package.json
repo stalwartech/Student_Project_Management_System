@@ -1,0 +1,25 @@
+{
+  "name": "student_pms",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "Client": "npm --prefix Client run dev",
+    "Server": "npm --prefix Server run dev",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "npm --prefix Client run dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stalwartech/Student_Project_Management_System.git"
+  },
+  "author": "stalwart",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/stalwartech/Student_Project_Management_System/issues"
+  },
+  "homepage": "https://github.com/stalwartech/Student_Project_Management_System#readme",
+  "dependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
