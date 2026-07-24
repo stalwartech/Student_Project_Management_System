@@ -1,8 +1,26 @@
 import { api } from "./client";
-import type { ApiEnvelope, Project, ActivityLogEntry } from "@/types";
+import type { ApiEnvelope, Project, ActivityLogEntry, ProjectType, User } from "@/types";
+
+export interface CreateProjectPayload {
+  title: string;
+  description: string;
+  deadline: string;
+  startDate: string;
+  department?: string;
+  studentIds: string[];
+  projectLeader?: string;
+}
 
 export const projectApi = {
   assigned: () => api.get<ApiEnvelope<Project[]>>("/projects/assigned"),
+
+  availableStudents: () =>
+    api.get<ApiEnvelope<{ session: string; students: Pick<User, "_id" | "name" | "matric" | "email" | "department" | "level">[] }>>("/supervisor/available-students"),
+
+  create: (payload: CreateProjectPayload) => api.post<ApiEnvelope<Project>>("/supervisor/projects", payload),
+
+  updateType: (id: string, projectType: ProjectType) =>
+    api.patch<ApiEnvelope<Project>>(`/supervisor/projects/${id}/type`, { projectType }),
 
   get: (id: string) => api.get<ApiEnvelope<Project>>(`/projects/${id}`),
 

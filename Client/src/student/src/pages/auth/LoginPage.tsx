@@ -29,8 +29,8 @@ export function LoginPage() {
       if (user.role !== "student") {
         window.location.assign(
           user.role === "coordinator"
-            ? "http://localhost:5173/coordinator/dashboard"
-            : "http://localhost:5175/supervisor/dashboard"
+            ? "/coordinator/dashboard"
+            : "/supervisor/dashboard"
         );
         return;
       }
@@ -72,10 +72,10 @@ export function LoginPage() {
         </form>
 
         <div className="mt-4 flex justify-between text-sm">
-          <Link to="/activate" className="text-brand-600 hover:underline">
+          <Link to="/student/activate" className="text-brand-600 hover:underline">
             Activate account
           </Link>
-          <Link to="/forgot-password" className="text-brand-600 hover:underline">
+          <Link to="/student/forgot-password" className="text-brand-600 hover:underline">
             Forgot password?
           </Link>
         </div>

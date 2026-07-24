@@ -75,7 +75,7 @@ export function ProjectDetailPage() {
       return;
     }
     const timeout = setTimeout(() => {
-      studentApi.list({ search: studentSearch, activated: "true", limit: 8 }).then((res) => setStudentOptions(res.data.data.students));
+      studentApi.list({ search: studentSearch, limit: 8 }).then((res) => setStudentOptions(res.data.data.students));
     }, 300);
     return () => clearTimeout(timeout);
   }, [studentSearch]);
@@ -379,7 +379,7 @@ export function ProjectDetailPage() {
         {conflicts.length === 0 ? (
           <div>
             <TextField
-              placeholder="Search activated students by name…"
+              placeholder="Search students by name…"
               value={studentSearch}
               onChange={(e) => setStudentSearch(e.target.value)}
             />

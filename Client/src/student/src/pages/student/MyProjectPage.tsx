@@ -7,12 +7,22 @@ import { PageHeader, Spinner } from "@/components/ui/misc";
 import { Badge, statusColor } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/utils/format";
+import { useForm } from "@/hooks/useForm";
+import { useToast } from "@/context/ToastContext";
+import { getErrorMessage } from "@/api/client";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { SelectField, TextField } from "@/components/ui/FormField";
 
 export function MyProjectPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [noProject, setNoProject] = useState(false);
+  const [showCreateChapter, setShowCreateChapter] = useState(false);
+  const [savingChapter, setSavingChapter] = useState(false);
+  const { show } = useToast();
+  const chapterForm = useForm({ title: "", chapterNumber: "", deadline: "", priority: "Medium" });
 
   useEffect(() => {
     (async () => {
@@ -45,6 +55,22 @@ export function MyProjectPage() {
       </div>
     );
   }
+
+  const createChapter = async () => {
+    setSavingChapter(true);
+    try {
+      await chapterApi.create({ ...chapterForm.values, project: project._id });
+      show("Chapter created", "success");
+      setShowCreateChapter(false);
+      chapterForm.reset();
+      const res = await chapterApi.list(project._id);
+      setChapters(res.data.data);
+    } catch (err) {
+      show(getErrorMessage(err), "error");
+    } finally {
+      setSavingChapter(false);
+    }
+  };
 
   return (
     <div>
@@ -112,7 +138,10 @@ export function MyProjectPage() {
       </div>
 
       <div className="card mt-4 p-5">
-        <h2 className="mb-3 text-sm font-semibold text-gray-900">Chapters</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-900">Chapters</h2>
+          <Button onClick={() => setShowCreateChapter(true)} disabled={project.isLocked}>New chapter</Button>
+        </div>
         {chapters.length === 0 ? (
           <p className="text-sm text-gray-400">No chapters yet.</p>
         ) : (
@@ -132,6 +161,20 @@ export function MyProjectPage() {
           </ul>
         )}
       </div>
+
+      <Modal
+        open={showCreateChapter}
+        onClose={() => setShowCreateChapter(false)}
+        title="New chapter"
+        footer={<><Button variant="secondary" onClick={() => setShowCreateChapter(false)}>Cancel</Button><Button onClick={createChapter} loading={savingChapter}>Create</Button></>}
+      >
+        <div className="space-y-4">
+          <TextField label="Title" value={chapterForm.values.title} onChange={chapterForm.update("title")} required />
+          <TextField label="Chapter number" value={chapterForm.values.chapterNumber} onChange={chapterForm.update("chapterNumber")} />
+          <TextField label="Deadline" type="date" value={chapterForm.values.deadline} onChange={chapterForm.update("deadline")} />
+          <SelectField label="Priority" value={chapterForm.values.priority} onChange={chapterForm.update("priority")} options={[{ value: "Low", label: "Low" }, { value: "Medium", label: "Medium" }, { value: "High", label: "High" }]} />
+        </div>
+      </Modal>
     </div>
   );
 }

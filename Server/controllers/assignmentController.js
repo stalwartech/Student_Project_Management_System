@@ -106,6 +106,14 @@ const assignStudent = asyncHandler(async (req, res) => {
     if (!project.students.some((id) => String(id) === String(studentId))) {
       project.students.push(studentId);
     }
+    // Keep the direct supervisor allocation in sync with a project placement.
+    // This also supports students allocated before their supervisor creates a
+    // project.
+    if (project.supervisor) {
+      student.assignedSupervisor = project.supervisor;
+      student.supervisorAssignmentSession = project.academicSession;
+      await student.save();
+    }
     results.assigned.push(studentId);
 
     await notify({ recipient: studentId, title: "Project assigned", message: `You've been assigned to "${project.title}".` });

@@ -10,7 +10,7 @@ const {
 } = require("../controllers/academicController");
 const { protect, authorize } = require("../middleware/auth");
 
-router.use(protect, authorize("coordinator"));
+router.use("/coordinator", protect, authorize("coordinator"));
 
 router.post("/coordinator/academic-session", createSession);
 router.get("/coordinator/academic-session", getSessions);

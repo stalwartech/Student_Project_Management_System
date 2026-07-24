@@ -6,12 +6,14 @@ const {
   getPrivateConversation,
   getProjectConversation,
   markMessageRead,
+  getUnreadSummary,
 } = require("../controllers/messageController");
 const { protect } = require("../middleware/auth");
 
 router.use(protect);
 
 router.post("/messages", sendMessage);
+router.get("/messages/unread-summary", getUnreadSummary);
 router.get("/messages/private/:userId", getPrivateConversation);
 router.get("/messages/project/:projectId", getProjectConversation);
 router.patch("/messages/:messageId/read", markMessageRead);

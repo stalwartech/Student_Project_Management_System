@@ -30,6 +30,25 @@ const getStudentById = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, "Student", student);
 });
 
+// PATCH /coordinator/students/:studentId
+const updateStudent = asyncHandler(async (req, res) => {
+  // Keep identity, access, and allocation fields under their dedicated flows.
+  const allowedFields = ["name", "department", "level", "gender", "phone", "whatsapp"];
+  const updates = Object.fromEntries(
+    Object.entries(req.body).filter(([field]) => allowedFields.includes(field))
+  );
+
+  const student = await User.findOneAndUpdate(
+    { _id: req.params.studentId, role: "student" },
+    updates,
+    { new: true, runValidators: true }
+  );
+  if (!student) throw new ApiError(404, "Student not found");
+
+  await logActivity({ actor: req.user._id, action: "student_updated", entityType: "user", entityId: student._id });
+  return sendSuccess(res, 200, "Student updated", student);
+});
+
 // PATCH /coordinator/students/:studentId/activate
 // Reactivates a deactivated account (distinct from the OTP self-activation flow).
 const activateStudent = asyncHandler(async (req, res) => {
@@ -60,4 +79,4 @@ const deactivateStudent = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, "Student deactivated", student);
 });
 
-module.exports = { getStudents, getStudentById, activateStudent, deactivateStudent };
+module.exports = { getStudents, getStudentById, updateStudent, activateStudent, deactivateStudent };

@@ -73,4 +73,31 @@ const markMessageRead = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, "Message marked as read", message);
 });
 
-module.exports = { sendMessage, getPrivateConversation, getProjectConversation, markMessageRead };
+// GET /messages/unread-summary - counts are keyed by sender or project so
+// the UI can identify exactly which conversation has unread activity.
+const getUnreadSummary = asyncHandler(async (req, res) => {
+  const privateMessages = await Message.find({
+    chatType: "Private",
+    recipient: req.user._id,
+    status: { $ne: "read" },
+  }).select("sender");
+  const groupMessages = await Message.find({
+    chatType: "Project Group",
+    sender: { $ne: req.user._id },
+    readBy: { $ne: req.user._id },
+  }).select("project");
+
+  const privateByUser = privateMessages.reduce((counts, message) => {
+    const key = String(message.sender);
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+  const groupByProject = groupMessages.reduce((counts, message) => {
+    const key = String(message.project);
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+  return sendSuccess(res, 200, "Unread message summary", { privateByUser, groupByProject });
+});
+
+module.exports = { sendMessage, getPrivateConversation, getProjectConversation, markMessageRead, getUnreadSummary };

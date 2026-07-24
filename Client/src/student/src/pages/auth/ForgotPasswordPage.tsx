@@ -68,7 +68,7 @@ export function ForgotPasswordPage() {
     setLoading(true);
     try {
       await authApi.resetPassword(activationToken, passwordForm.values.password);
-      navigate("/login");
+      navigate("/student/login");
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -133,7 +133,7 @@ export function ForgotPasswordPage() {
         )}
 
         <p className="mt-4 text-center text-sm text-gray-500">
-          <Link to="/login" className="text-brand-600 hover:underline">
+          <Link to="/student/login" className="text-brand-600 hover:underline">
             Back to sign in
           </Link>
         </p>

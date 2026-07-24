@@ -127,7 +127,9 @@ export interface Settings {
 
 export interface AllocationProposal {
   student: string;
-  project: string;
+  project?: string;
+  supervisor?: string;
+  mode?: "project" | "supervisor";
 }
 export interface AllocationSkipped {
   student: string;

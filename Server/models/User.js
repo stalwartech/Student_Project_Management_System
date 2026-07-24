@@ -23,6 +23,12 @@ const authSchema = new mongoose.Schema(
     level: { type: String },
     cgpa: { type: String },
 
+    // A coordinator can allocate a student to a supervisor before the
+    // supervisor has created a project. The session keeps that allocation
+    // scoped to the active academic period.
+    assignedSupervisor: { type: mongoose.Schema.Types.ObjectId, ref: "auth", default: null },
+    supervisorAssignmentSession: { type: mongoose.Schema.Types.ObjectId, ref: "academicSession", default: null },
+
     // Supervisor-only fields
     staffId: { type: String, unique: true, sparse: true },
     title: { type: String },

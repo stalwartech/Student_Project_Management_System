@@ -23,6 +23,9 @@ export const studentApi = {
 
   get: (id: string) => api.get<ApiEnvelope<User>>(`/coordinator/students/${id}`),
 
+  update: (id: string, payload: Partial<User>) =>
+    api.patch<ApiEnvelope<User>>(`/coordinator/students/${id}`, payload),
+
   activate: (id: string) => api.patch<ApiEnvelope<User>>(`/coordinator/students/${id}/activate`),
 
   deactivate: (id: string) => api.patch<ApiEnvelope<User>>(`/coordinator/students/${id}/deactivate`),

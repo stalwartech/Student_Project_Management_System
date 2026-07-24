@@ -14,10 +14,10 @@ export const authApi = {
 
   me: () => api.get<ApiEnvelope<User>>("/auth/me"),
 
-  activate: (matric: string) => api.post<ApiEnvelope<null>>("/auth/activate", { matric }),
+  activate: (identifier: string) => api.post<ApiEnvelope<null>>("/auth/activate", { identifier }),
 
-  verifyOtp: (matric: string, code: string) =>
-    api.post<ApiEnvelope<{ activationToken: string }>>("/auth/verify-otp", { matric, code }),
+  verifyOtp: (identifier: string, code: string) =>
+    api.post<ApiEnvelope<{ activationToken: string }>>("/auth/verify-otp", { identifier, code }),
 
   createPassword: (activationToken: string, password: string) =>
     api.post<ApiEnvelope<null>>(

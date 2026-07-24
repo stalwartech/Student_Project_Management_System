@@ -42,6 +42,10 @@ export function MessagesPage() {
     setResults([]);
     const res = await messageApi.privateThread(u._id);
     setThread(res.data.data);
+    await Promise.all(res.data.data.filter((message) => {
+      const senderId = typeof message.sender === "string" ? message.sender : message.sender._id;
+      return senderId !== user?._id;
+    }).map((message) => messageApi.markRead(message._id)));
   };
 
   useEffect(() => {

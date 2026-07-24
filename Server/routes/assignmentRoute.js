@@ -9,7 +9,7 @@ const {
 } = require("../controllers/assignmentController");
 const { protect, authorize } = require("../middleware/auth");
 
-router.use(protect, authorize("coordinator"));
+router.use("/coordinator", protect, authorize("coordinator"));
 
 router.post("/coordinator/projects/:projectID/assign-supervisor", assignSupervisor);
 router.patch("/coordinator/projects/:projectID/change-supervisor", changeSupervisor);

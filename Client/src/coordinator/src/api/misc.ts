@@ -48,4 +48,5 @@ export const messageApi = {
   privateThread: (userId: string) => api.get<ApiEnvelope<Message[]>>(`/messages/private/${userId}`),
   projectThread: (projectId: string) => api.get<ApiEnvelope<Message[]>>(`/messages/project/${projectId}`),
   markRead: (id: string) => api.patch<ApiEnvelope<Message>>(`/messages/${id}/read`),
+  unreadSummary: () => api.get<ApiEnvelope<{ privateByUser: Record<string, number>; groupByProject: Record<string, number> }>>("/messages/unread-summary"),
 };

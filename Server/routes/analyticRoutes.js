@@ -11,7 +11,7 @@ const {
 } = require("../controllers/analyticController");
 const { protect, authorize } = require("../middleware/auth");
 
-router.use(protect, authorize("coordinator"));
+router.use("/analytics", protect, authorize("coordinator"));
 
 router.get("/analytics/student", studentAnalytics);
 router.get("/analytics/supervisor", supervisorAnalytics);

@@ -23,10 +23,7 @@ if (apiIsRunning) console.log(`[API] Reusing the server already running on port 
 
 const applications = [
   ...(apiIsRunning ? [] : [{ name: 'API', directory: serverDirectory, port: apiPort, command: ['run', 'dev'] }]),
-  { name: 'Launcher', directory: '.', port: 5172, command: ['run', 'dev:launcher'] },
-  { name: 'Coordinator', directory: 'src/coordinator', port: 5173, command: ['run', 'dev'] },
-  { name: 'Student', directory: 'src/student', port: 5174, command: ['run', 'dev'] },
-  { name: 'Supervisor', directory: 'src/supervisor', port: 5175, command: ['run', 'dev'] },
+  { name: 'SPMS', directory: '.', port: 5172, command: ['run', 'dev:launcher'] },
 ]
 
 const children = []

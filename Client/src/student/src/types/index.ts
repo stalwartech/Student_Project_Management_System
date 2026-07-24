@@ -99,6 +99,8 @@ export interface Task {
   chapter: string;
   taskNumber?: string;
   checklist: ChecklistItem[];
+  isLocked: boolean;
+  feedback: { _id: string; comment: string; createdAt: string }[];
   createdAt: string;
 }
 

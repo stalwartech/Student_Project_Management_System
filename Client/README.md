@@ -6,13 +6,13 @@ From this directory, start every client portal with one command:
 npm run dev
 ```
 
-Then open the launcher at `http://localhost:5172`. It links to the three role portals:
+Then open the application at `http://localhost:5172`. Every portal is served from this same port:
 
-- Coordinator: `http://localhost:5173`
-- Student: `http://localhost:5174`
-- Supervisor: `http://localhost:5175`
+- Coordinator: `http://localhost:5172/coordinator/login`
+- Student: `http://localhost:5172/student/login`
+- Supervisor: `http://localhost:5172/supervisor/login`
 
-The command also starts the backend at `http://localhost:3021`. Each portal proxies `/api` and `/uploads` to it, so API-backed features work without a second terminal. The backend still needs a valid `Server/.env` and access to its MongoDB database.
+The command also starts the backend and proxies `/api` and `/uploads`, so all browser activity stays on port `5172`. The backend still needs a valid `Server/.env` and access to its MongoDB database.
 
 To create production builds for all four frontends, run:
 

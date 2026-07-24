@@ -11,7 +11,7 @@ const {
 } = require("../controllers/supervisorManagementController");
 const { protect, authorize } = require("../middleware/auth");
 
-router.use(protect, authorize("coordinator"));
+router.use("/coordinator", protect, authorize("coordinator"));
 
 router.get("/coordinator/supervisors", getSupervisors);
 router.get("/coordinator/supervisors/:supervisorId", getSupervisorById);

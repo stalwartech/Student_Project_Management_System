@@ -25,7 +25,7 @@ export function ActivatePage() {
   const [loading, setLoading] = useState(false);
   const [activationToken, setActivationToken] = useState("");
 
-  const matricForm = useForm({ matric: "" });
+  const identifierForm = useForm({ identifier: "" });
   const otpForm = useForm({ code: "" });
   const passwordForm = useForm({ password: "", confirmPassword: "" });
 
@@ -34,7 +34,7 @@ export function ActivatePage() {
     setError("");
     setLoading(true);
     try {
-      await authApi.activate(matricForm.values.matric);
+      await authApi.activate(identifierForm.values.identifier);
       setStep(2);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -48,7 +48,7 @@ export function ActivatePage() {
     setError("");
     setLoading(true);
     try {
-      const res = await authApi.verifyOtp(matricForm.values.matric, otpForm.values.code);
+      const res = await authApi.verifyOtp(identifierForm.values.identifier, otpForm.values.code);
       setActivationToken(res.data.data.activationToken);
       setStep(3);
     } catch (err) {
@@ -72,7 +72,7 @@ export function ActivatePage() {
     setLoading(true);
     try {
       await authApi.createPassword(activationToken, passwordForm.values.password);
-      navigate("/login");
+      navigate("/supervisor/login");
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -90,9 +90,10 @@ export function ActivatePage() {
         {step === 1 && (
           <form onSubmit={handleStep1} className="space-y-4">
             <TextField
-              label="Matric number"
-              value={matricForm.values.matric}
-              onChange={matricForm.update("matric")}
+              label="Staff ID or email"
+              placeholder="e.g. ST12345 or you@school.edu"
+              value={identifierForm.values.identifier}
+              onChange={identifierForm.update("identifier")}
               required
             />
             {error && <p className="text-sm text-red-600">{error}</p>}
@@ -143,7 +144,7 @@ export function ActivatePage() {
         )}
 
         <p className="mt-4 text-center text-sm text-gray-500">
-          <Link to="/login" className="text-brand-600 hover:underline">
+          <Link to="/supervisor/login" className="text-brand-600 hover:underline">
             Back to sign in
           </Link>
         </p>

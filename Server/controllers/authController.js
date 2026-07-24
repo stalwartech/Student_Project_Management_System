@@ -103,10 +103,11 @@ const importUsers = async ({ rows, role, requiredFields, req }) => {
     const created = await User.insertMany(toCreate, { ordered: false });
     summary.imported = created.map((u) => ({ id: u._id, name: u.name, email: u.email }));
 
-    // Fire off welcome + activation OTP emails. Doesn't block the response
-    // shape if one email fails - each is caught independently.
-    await Promise.all(
-      created.map(async (user) => {
+    // Students receive their activation email immediately. Supervisors request
+    // their OTP themselves from the activation screen using a staff ID or
+    // email, so adding a supervisor never sends an unsolicited token.
+    if (role === "student") {
+      await Promise.all(created.map(async (user) => {
         try {
           const otp = await createOTP(user._id, "activation");
           const { subject, html } = welcomeEmail({
@@ -118,8 +119,8 @@ const importUsers = async ({ rows, role, requiredFields, req }) => {
         } catch (err) {
           console.error(`Failed to send welcome email to ${user.email}:`, err.message);
         }
-      })
-    );
+      }));
+    }
 
     await logActivity({
       actor: req.user._id,
@@ -148,13 +149,20 @@ const importSupervisors = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, "Supervisor import processed", summary);
 });
 
-// POST /auth/activate  { matric }  -> sends activation OTP
-const activate = asyncHandler(async (req, res) => {
-  const { matric } = req.body;
-  if (!matric) throw new ApiError(400, "matric is required");
+const findActivationUser = (identifier) => {
+  const value = identifier.trim();
+  if (value.includes("@")) return User.findOne({ email: value.toLowerCase() });
+  return User.findOne({ $or: [{ matric: value }, { staffId: value }] });
+};
 
-  const user = await User.findOne({ matric });
-  if (!user) throw new ApiError(404, "No account found for this matric number");
+// POST /auth/activate  { identifier }  -> sends activation OTP
+const activate = asyncHandler(async (req, res) => {
+  // `matric` is retained for existing student clients during the transition.
+  const identifier = req.body.identifier || req.body.matric;
+  if (!identifier) throw new ApiError(400, "An email, matric number, or staff ID is required");
+
+  const user = await findActivationUser(identifier);
+  if (!user) throw new ApiError(404, "No account found for those details");
   if (user.isActivated) throw new ApiError(400, "Account is already activated");
 
   const otp = await createOTP(user._id, "activation");
@@ -164,12 +172,13 @@ const activate = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, "OTP sent to your registered email");
 });
 
-// POST /auth/verify-otp  { matric, code }  -> returns a short-lived activation token
+// POST /auth/verify-otp  { identifier, code }  -> returns a short-lived activation token
 const verifyOTP = asyncHandler(async (req, res) => {
-  const { matric, code } = req.body;
-  if (!matric || !code) throw new ApiError(400, "matric and code are required");
+  const identifier = req.body.identifier || req.body.matric;
+  const { code } = req.body;
+  if (!identifier || !code) throw new ApiError(400, "identifier and code are required");
 
-  const user = await User.findOne({ matric });
+  const user = await findActivationUser(identifier);
   if (!user) throw new ApiError(404, "User not found");
 
   const otp = await findValidOTP(user._id, "activation", code);
@@ -207,12 +216,14 @@ const createPassword = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, "Account activated - you can now log in");
 });
 
-// POST /auth/login  { identifier, password }  - identifier is matric (students) or email (supervisor/coordinator)
+// POST /auth/login  { identifier, password }  - identifier is an email, matric number, or staff ID
 const login = asyncHandler(async (req, res) => {
   const { identifier, password } = req.body;
   if (!identifier || !password) throw new ApiError(400, "identifier and password are required");
 
-  const query = identifier.includes("@") ? { email: identifier.toLowerCase() } : { matric: identifier };
+  const query = identifier.includes("@")
+    ? { email: identifier.toLowerCase() }
+    : { $or: [{ matric: identifier }, { staffId: identifier }] };
   const user = await User.findOne(query).select("+password");
 
   if (!user) throw new ApiError(401, "Invalid credentials");

@@ -22,8 +22,8 @@ export function LoginPage() {
       if (user.role !== "coordinator") {
         window.location.assign(
           user.role === "student"
-            ? "http://localhost:5174/student/dashboard"
-            : "http://localhost:5175/supervisor/dashboard"
+            ? "/student/dashboard"
+            : "/supervisor/dashboard"
         );
         return;
       }
@@ -43,8 +43,8 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <TextField
-            label="Matric number or email"
-            placeholder="e.g. 2020/1/12345 or you@school.edu"
+            label="Matric number, staff ID, or email"
+            placeholder="e.g. 2020/1/12345, ST12345, or you@school.edu"
             value={values.identifier}
             onChange={update("identifier")}
             required
@@ -65,10 +65,10 @@ export function LoginPage() {
         </form>
 
         <div className="mt-4 flex justify-between text-sm">
-          <Link to="/activate" className="text-brand-600 hover:underline">
+          <Link to="/coordinator/activate" className="text-brand-600 hover:underline">
             Activate account
           </Link>
-          <Link to="/forgot-password" className="text-brand-600 hover:underline">
+          <Link to="/coordinator/forgot-password" className="text-brand-600 hover:underline">
             Forgot password?
           </Link>
         </div>

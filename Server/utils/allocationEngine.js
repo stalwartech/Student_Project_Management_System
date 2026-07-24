@@ -37,6 +37,13 @@ const getSupervisorWorkload = async (supervisorId, academicSession) => {
   return { currentLoad, limit, exceeded: currentLoad >= limit };
 };
 
+const getSupervisorStudentLoad = async (User, supervisorId, academicSession) =>
+  User.countDocuments({
+    role: "student",
+    assignedSupervisor: supervisorId,
+    supervisorAssignmentSession: academicSession,
+  });
+
 /**
  * Smart Auto Allocation: assigns unassigned students in an active session to
  * projects that (a) belong to that session, (b) aren't full, and whose
@@ -54,36 +61,69 @@ const runAutoAllocation = async ({ User, students, session, dryRun = false }) =>
     status: { $ne: "Archived" },
   }).populate("supervisor");
 
+  const supervisors = await User.find({ role: "supervisor", isDeactivated: false });
+
   const proposals = [];
   const skipped = [];
 
   // Track in-memory student counts per project so we don't over-fill within
   // this single run (DB isn't updated yet if dryRun, or updated incrementally otherwise).
   const projectLoad = new Map(projects.map((p) => [String(p._id), p.students.length]));
+  const directSupervisorLoad = new Map();
+  for (const supervisor of supervisors) {
+    directSupervisorLoad.set(String(supervisor._id), await getSupervisorStudentLoad(User, supervisor._id, session._id));
+  }
 
   for (const student of students) {
-    const eligibleProject = projects.find((p) => {
-      const load = projectLoad.get(String(p._id));
-      return load < maxPerProject && p.projectType !== "Group_Full";
-    });
+    let eligibleProject = null;
+
+    // Do not stop at the first project with space: its supervisor can be at
+    // capacity, while a later project remains available. Projects that have
+    // not yet been assigned a supervisor are not valid auto-allocation targets.
+    for (const project of projects) {
+      const load = projectLoad.get(String(project._id));
+      if (load >= maxPerProject || !project.supervisor) continue;
+      if (student.assignedSupervisor && String(student.assignedSupervisor) !== String(project.supervisor._id)) continue;
+
+      const workload = await getSupervisorWorkload(project.supervisor._id, session._id);
+      if (!workload.exceeded) {
+        eligibleProject = project;
+        break;
+      }
+    }
 
     if (!eligibleProject) {
-      skipped.push({ student: student._id, reason: "No project with available capacity" });
+      // Supervisors can receive students before they create projects. Balance
+      // those direct allocations so the coordinator can run allocation first.
+      if (projects.length === 0 && supervisors.length) {
+        const supervisor = supervisors.reduce((leastLoaded, candidate) =>
+          directSupervisorLoad.get(String(candidate._id)) < directSupervisorLoad.get(String(leastLoaded._id))
+            ? candidate
+            : leastLoaded
+        );
+        proposals.push({ student: student._id, supervisor: supervisor._id, mode: "supervisor" });
+        directSupervisorLoad.set(String(supervisor._id), directSupervisorLoad.get(String(supervisor._id)) + 1);
+        if (!dryRun) {
+          student.assignedSupervisor = supervisor._id;
+          student.supervisorAssignmentSession = session._id;
+          await student.save();
+        }
+        continue;
+      }
+
+      skipped.push({ student: student._id, reason: "No matching supervised project with available capacity" });
       continue;
     }
 
-    const workload = await getSupervisorWorkload(eligibleProject.supervisor._id, session._id);
-    if (workload.exceeded) {
-      skipped.push({ student: student._id, reason: "Assigned project's supervisor is at capacity" });
-      continue;
-    }
-
-    proposals.push({ student: student._id, project: eligibleProject._id });
+    proposals.push({ student: student._id, project: eligibleProject._id, supervisor: eligibleProject.supervisor._id, mode: "project" });
     projectLoad.set(String(eligibleProject._id), projectLoad.get(String(eligibleProject._id)) + 1);
 
     if (!dryRun) {
       eligibleProject.students.push(student._id);
       await eligibleProject.save();
+      student.assignedSupervisor = eligibleProject.supervisor._id;
+      student.supervisorAssignmentSession = session._id;
+      await student.save();
     }
   }
 

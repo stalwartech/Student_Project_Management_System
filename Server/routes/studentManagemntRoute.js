@@ -4,15 +4,17 @@ const router = express.Router();
 const {
   getStudents,
   getStudentById,
+  updateStudent,
   activateStudent,
   deactivateStudent,
 } = require("../controllers/studentManagementController");
 const { protect, authorize } = require("../middleware/auth");
 
-router.use(protect, authorize("coordinator"));
+router.use("/coordinator", protect, authorize("coordinator"));
 
 router.get("/coordinator/students", getStudents);
 router.get("/coordinator/students/:studentId", getStudentById);
+router.patch("/coordinator/students/:studentId", updateStudent);
 router.patch("/coordinator/students/:studentId/activate", activateStudent);
 router.patch("/coordinator/students/:studentId/deactivate", deactivateStudent);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { projectApi } from "@/api/projects";
 import { chapterApi } from "@/api/chapters";
@@ -6,13 +6,10 @@ import { messageApi } from "@/api/misc";
 import { getErrorMessage } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
 import type { Project, Chapter, Message } from "@/types";
-import { useForm } from "@/hooks/useForm";
 import { useToast } from "@/context/ToastContext";
 import { PageHeader, Spinner } from "@/components/ui/misc";
 import { Badge, statusColor } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { TextField, SelectField } from "@/components/ui/FormField";
 import { formatDate, formatDateTime } from "@/utils/format";
 
 type Tab = "overview" | "chapters" | "members" | "messages";
@@ -27,10 +24,8 @@ export function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
   const [lockToggling, setLockToggling] = useState(false);
+  const [changingType, setChangingType] = useState(false);
 
-  const [showCreateChapter, setShowCreateChapter] = useState(false);
-  const [savingChapter, setSavingChapter] = useState(false);
-  const chapterForm = useForm({ title: "", chapterNumber: "", deadline: "", priority: "Medium" });
 
   const load = async () => {
     if (!id) return;
@@ -71,19 +66,17 @@ export function ProjectDetailPage() {
     }
   };
 
-  const handleCreateChapter = async () => {
-    if (!id) return;
-    setSavingChapter(true);
+  const changeProjectType = async (projectType: "Individual" | "Group") => {
+    if (!project || projectType === project.projectType) return;
+    setChangingType(true);
     try {
-      await chapterApi.create({ ...chapterForm.values, project: id });
-      show("Chapter created", "success");
-      setShowCreateChapter(false);
-      chapterForm.reset();
-      loadChapters();
+      await projectApi.updateType(project._id, projectType);
+      show(`Project changed to ${projectType.toLowerCase()}`, "success");
+      load();
     } catch (err) {
       show(getErrorMessage(err), "error");
     } finally {
-      setSavingChapter(false);
+      setChangingType(false);
     }
   };
 
@@ -139,7 +132,17 @@ export function ProjectDetailPage() {
             </div>
             <div>
               <dt className="text-gray-500">Type</dt>
-              <dd className="mt-1 text-gray-900">{project.projectType}</dd>
+              <dd className="mt-1">
+                <select
+                  value={project.projectType}
+                  onChange={(e) => changeProjectType(e.target.value as "Individual" | "Group")}
+                  disabled={changingType}
+                  className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 disabled:opacity-60"
+                >
+                  <option value="Individual">Individual</option>
+                  <option value="Group">Group</option>
+                </select>
+              </dd>
             </div>
             <div>
               <dt className="text-gray-500">Deadline</dt>
@@ -159,9 +162,7 @@ export function ProjectDetailPage() {
 
       {tab === "chapters" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => setShowCreateChapter(true)}>New chapter</Button>
-          </div>
+          <p className="text-sm text-gray-500">Chapters are created and maintained by the student. You can review, give feedback, and lock them.</p>
           <div className="card divide-y divide-gray-100">
             {chapters.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-gray-400">No chapters yet.</p>
@@ -209,37 +210,6 @@ export function ProjectDetailPage() {
 
       {tab === "messages" && id && <ProjectGroupChat projectId={id} currentUserId={user?._id} />}
 
-      <Modal
-        open={showCreateChapter}
-        onClose={() => setShowCreateChapter(false)}
-        title="New chapter"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowCreateChapter(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateChapter} loading={savingChapter}>
-              Create
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <TextField label="Title" value={chapterForm.values.title} onChange={chapterForm.update("title")} required />
-          <TextField label="Chapter number" value={chapterForm.values.chapterNumber} onChange={chapterForm.update("chapterNumber")} />
-          <TextField label="Deadline" type="date" value={chapterForm.values.deadline} onChange={chapterForm.update("deadline")} />
-          <SelectField
-            label="Priority"
-            value={chapterForm.values.priority}
-            onChange={chapterForm.update("priority")}
-            options={[
-              { value: "Low", label: "Low" },
-              { value: "Medium", label: "Medium" },
-              { value: "High", label: "High" },
-            ]}
-          />
-        </div>
-      </Modal>
     </div>
   );
 }

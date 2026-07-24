@@ -48,7 +48,7 @@ export function Topbar() {
 
   const handleLogout = async () => {
     await logout();
-    navigate("/login");
+    navigate("/supervisor/login");
   };
 
   return (
@@ -92,7 +92,7 @@ export function Topbar() {
                 )}
               </div>
               <Link
-                to="/notifications"
+                to="/supervisor/notifications"
                 className="block border-t border-gray-100 px-4 py-2 text-center text-xs font-medium text-brand-600 hover:bg-gray-50"
                 onClick={() => setShowNotifications(false)}
               >
@@ -114,7 +114,7 @@ export function Topbar() {
           </button>
           {showUserMenu && (
             <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-              <Link to="/account" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setShowUserMenu(false)}>
+              <Link to="/supervisor/account" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setShowUserMenu(false)}>
                 Account settings
               </Link>
               <button onClick={handleLogout} className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50">

@@ -11,7 +11,7 @@ const {
 } = require("../controllers/settingsController");
 const { protect, authorize } = require("../middleware/auth");
 
-router.use(protect, authorize("coordinator"));
+router.use("/settings", protect, authorize("coordinator"));
 
 router.get("/settings", getSettings);
 router.patch("/settings", updateSettings);

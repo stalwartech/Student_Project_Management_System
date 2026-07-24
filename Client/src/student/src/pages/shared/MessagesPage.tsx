@@ -16,11 +16,15 @@ export function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [unread, setUnread] = useState({ privateByUser: {} as Record<string, number>, groupByProject: {} as Record<string, number> });
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     projectApi.myProject().then((res) => setProject(res.data.data)).catch(() => setProject(null));
   }, []);
+
+  const loadUnread = () => messageApi.unreadSummary().then((res) => setUnread(res.data.data)).catch(() => {});
+  useEffect(() => { loadUnread(); }, []);
 
   const openThread = async (t: Thread) => {
     if (!project) return;
@@ -29,6 +33,11 @@ export function MessagesPage() {
       ? await messageApi.privateThread(project.supervisor._id)
       : await messageApi.projectThread(project._id);
     setMessages(res.data.data);
+    await Promise.all(res.data.data.filter((message) => {
+      const senderId = typeof message.sender === "string" ? message.sender : message.sender._id;
+      return senderId !== user?._id;
+    }).map((message) => messageApi.markRead(message._id)));
+    loadUnread();
   };
 
   useEffect(() => {
@@ -74,7 +83,8 @@ export function MessagesPage() {
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
                 {project.supervisor.name[0]?.toUpperCase()}
               </span>
-              {project.supervisor.title} {project.supervisor.name}
+              <span className="flex-1">{project.supervisor.title} {project.supervisor.name}</span>
+              {unread.privateByUser[project.supervisor._id] > 0 && <UnreadDot />}
             </button>
           )}
           <button
@@ -82,7 +92,8 @@ export function MessagesPage() {
             className={`mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-gray-50 ${thread === "group" ? "bg-brand-50" : ""}`}
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-600">#</span>
-            Project group chat
+            <span className="flex-1">Project group chat</span>
+            {unread.groupByProject[project._id] > 0 && <UnreadDot />}
           </button>
         </div>
 
@@ -121,4 +132,8 @@ export function MessagesPage() {
       </div>
     </div>
   );
+}
+
+function UnreadDot() {
+  return <span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" /></span>;
 }

@@ -21,8 +21,8 @@ export function ProtectedRoute({ children, allow }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
-  if (allow && !allow.includes(user.role)) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/student/login" replace />;
+  if (allow && !allow.includes(user.role)) return <Navigate to="/student/login" replace />;
 
   return <>{children}</>;
 }

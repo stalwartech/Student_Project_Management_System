@@ -11,6 +11,14 @@ const checklistItemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const feedbackSchema = new mongoose.Schema(
+  {
+    comment: { type: String, required: true, trim: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "auth", required: true },
+  },
+  { timestamps: true }
+);
+
 const taskSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
@@ -28,9 +36,11 @@ const taskSchema = new mongoose.Schema(
     taskNumber: { type: String },
 
     checklist: [checklistItemSchema], // was entirely missing, needed by taskRoute's checklist endpoints
+    feedback: [feedbackSchema],
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "auth" },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "auth" },
+    isLocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

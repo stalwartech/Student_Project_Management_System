@@ -7,7 +7,10 @@ const projectSchema = new mongoose.Schema(
     deadline: { type: Date, required: true },
     startDate: { type: Date, required: true },
 
-    supervisor: { type: mongoose.Schema.Types.ObjectId, ref: "auth", required: true },
+    // A coordinator may create a project first and assign its supervisor from
+    // the project details screen.  Keep this optional until that assignment is
+    // made; auto-allocation ignores projects without a supervisor.
+    supervisor: { type: mongoose.Schema.Types.ObjectId, ref: "auth", default: null },
 
     // Was a single ObjectId - fixed to an array so Group projects can hold
     // multiple students, matching bulk/auto assignment in the spec.

@@ -3,23 +3,51 @@ import { useParams, Link } from "react-router-dom";
 import { studentApi } from "@/api/students";
 import { getErrorMessage } from "@/api/client";
 import type { User } from "@/types";
+import { useForm } from "@/hooks/useForm";
 import { useToast } from "@/context/ToastContext";
 import { PageHeader, Spinner } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { TextField } from "@/components/ui/FormField";
 
 export function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { show } = useToast();
   const [student, setStudent] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const form = useForm({ name: "", department: "", level: "", gender: "", phone: "", whatsapp: "" });
 
   const load = async () => {
     if (!id) return;
     setLoading(true);
     const res = await studentApi.get(id);
     setStudent(res.data.data);
+    form.setValues({
+      name: res.data.data.name,
+      department: res.data.data.department,
+      level: res.data.data.level ?? "",
+      gender: res.data.data.gender ?? "",
+      phone: res.data.data.phone ?? "",
+      whatsapp: res.data.data.whatsapp ?? "",
+    });
     setLoading(false);
+  };
+
+  const saveEdits = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      await studentApi.update(id, form.values);
+      show("Student updated", "success");
+      setEditing(false);
+      load();
+    } catch (err) {
+      show(getErrorMessage(err), "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -64,27 +92,50 @@ export function StudentDetailPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className="card p-5">
-          <h2 className="mb-4 text-sm font-semibold text-gray-900">Details</h2>
-          <dl className="space-y-3 text-sm">
-            <Row label="Email" value={student.email} />
-            <Row label="Department" value={student.department} />
-            <Row label="Level" value={student.level ?? "—"} />
-            <Row label="Gender" value={student.gender ?? "—"} />
-            <Row label="Phone" value={student.phone ?? "—"} />
-            <Row label="WhatsApp" value={student.whatsapp ?? "—"} />
-            <Row
-              label="Status"
-              value={
-                student.isDeactivated ? (
-                  <Badge color="red">Deactivated</Badge>
-                ) : student.isActivated ? (
-                  <Badge color="green">Activated</Badge>
-                ) : (
-                  <Badge color="amber">Pending activation</Badge>
-                )
-              }
-            />
-          </dl>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">Details</h2>
+            {!editing && (
+              <button className="text-sm font-medium text-brand-600 hover:underline" onClick={() => setEditing(true)}>
+                Edit
+              </button>
+            )}
+          </div>
+
+          {!editing ? (
+            <dl className="space-y-3 text-sm">
+              <Row label="Email" value={student.email} />
+              <Row label="Department" value={student.department} />
+              <Row label="Level" value={student.level ?? "—"} />
+              <Row label="Gender" value={student.gender ?? "—"} />
+              <Row label="Phone" value={student.phone ?? "—"} />
+              <Row label="WhatsApp" value={student.whatsapp ?? "—"} />
+              <Row
+                label="Status"
+                value={
+                  student.isDeactivated ? (
+                    <Badge color="red">Deactivated</Badge>
+                  ) : student.isActivated ? (
+                    <Badge color="green">Activated</Badge>
+                  ) : (
+                    <Badge color="amber">Pending activation</Badge>
+                  )
+                }
+              />
+            </dl>
+          ) : (
+            <div className="space-y-4">
+              <TextField label="Name" value={form.values.name} onChange={form.update("name")} />
+              <TextField label="Department" value={form.values.department} onChange={form.update("department")} />
+              <TextField label="Level" value={form.values.level} onChange={form.update("level")} />
+              <TextField label="Gender" value={form.values.gender} onChange={form.update("gender")} />
+              <TextField label="Phone" value={form.values.phone} onChange={form.update("phone")} />
+              <TextField label="WhatsApp" value={form.values.whatsapp} onChange={form.update("whatsapp")} />
+              <div className="flex gap-2">
+                <Button onClick={saveEdits} loading={saving}>Save</Button>
+                <Button variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

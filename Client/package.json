@@ -5,27 +5,27 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "dev:launcher": "vite --port 5172 --strictPort",
-    "dev:coordinator": "npm --prefix src/coordinator run dev",
-    "dev:student": "npm --prefix src/student run dev",
-    "dev:supervisor": "npm --prefix src/supervisor run dev",
-    "build": "npm run build:launcher && npm run build:coordinator && npm run build:student && npm run build:supervisor",
-    "build:launcher": "vite build",
-    "build:coordinator": "npm --prefix src/coordinator run build",
-    "build:student": "npm --prefix src/student run build",
-    "build:supervisor": "npm --prefix src/supervisor run build",
+    "dev:launcher": "vite --force --port 5172 --strictPort",
+    "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^6.24.1",
+    "axios": "^1.7.2",
+    "date-fns": "^3.6.0",
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.4"
   }
 }

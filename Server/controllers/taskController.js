@@ -1,14 +1,36 @@
 const fs = require("fs");
 const path = require("path");
 const Task = require("../models/Task");
+const Chapter = require("../models/Chapter");
+const Project = require("../models/Project");
 const Attachment = require("../models/Attachment");
 const asyncHandler = require("../utils/asyncHandler");
 const { ApiError, sendSuccess } = require("../utils/apiError");
+
+const sameId = (left, right) => String(left) === String(right);
+const assertTaskAccess = async (user, task) => {
+  const chapter = await Chapter.findById(task.chapter);
+  if (!chapter) throw new ApiError(404, "Chapter not found");
+  const project = await Project.findById(chapter.project);
+  if (!project) throw new ApiError(404, "Project not found");
+  const isStudent = project.students.some((student) => sameId(student, user._id));
+  const isSupervisor = project.supervisor && sameId(project.supervisor, user._id);
+  if (user.role !== "coordinator" && !isStudent && !isSupervisor) throw new ApiError(403, "You do not have access to this task");
+  return { chapter, project, isStudent, isSupervisor };
+};
 
 // POST /tasks
 const createTask = asyncHandler(async (req, res) => {
   const { title, chapter, description, deadline, taskNumber } = req.body;
   if (!title || !chapter) throw new ApiError(400, "title and chapter are required");
+
+  const chapterDoc = await Chapter.findById(chapter);
+  if (!chapterDoc) throw new ApiError(404, "Chapter not found");
+  const project = await Project.findById(chapterDoc.project);
+  if (!project || !project.students.some((student) => sameId(student, req.user._id))) {
+    throw new ApiError(403, "You can only create tasks for your assigned project");
+  }
+  if (chapterDoc.isLocked || project.isLocked) throw new ApiError(403, "This chapter is locked");
 
   const task = await Task.create({ title, chapter, description, deadline, taskNumber, createdBy: req.user._id });
   return sendSuccess(res, 201, "Task created", task);
@@ -19,42 +41,57 @@ const getTasks = asyncHandler(async (req, res) => {
   const query = {};
   if (req.query.chapter) query.chapter = req.query.chapter;
   const tasks = await Task.find(query).sort({ taskNumber: 1 });
-  return sendSuccess(res, 200, "Tasks", tasks);
+  const accessible = [];
+  for (const task of tasks) {
+    try {
+      await assertTaskAccess(req.user, task);
+      accessible.push(task);
+    } catch (error) {
+      if (error.statusCode !== 403) throw error;
+    }
+  }
+  return sendSuccess(res, 200, "Tasks", accessible);
 });
 
 // GET /tasks/:taskId
 const getTaskById = asyncHandler(async (req, res) => {
   const task = await Task.findById(req.params.taskId);
   if (!task) throw new ApiError(404, "Task not found");
+  await assertTaskAccess(req.user, task);
   return sendSuccess(res, 200, "Task", task);
 });
 
 // PATCH /tasks/:taskId
 const updateTask = asyncHandler(async (req, res) => {
-  const task = await Task.findByIdAndUpdate(
-    req.params.taskId,
-    { ...req.body, updatedBy: req.user._id },
-    { new: true, runValidators: true }
-  );
+  const task = await Task.findById(req.params.taskId);
   if (!task) throw new ApiError(404, "Task not found");
+  const { chapter, project, isStudent } = await assertTaskAccess(req.user, task);
+  if (!isStudent || task.isLocked || chapter.isLocked || project.isLocked) throw new ApiError(403, "This task is locked or does not belong to you");
+  const allowed = ["title", "description", "deadline", "taskNumber"];
+  Object.assign(task, Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key))), { updatedBy: req.user._id });
+  await task.save();
   return sendSuccess(res, 200, "Task updated", task);
 });
 
 // DELETE /tasks/:taskId
 const deleteTask = asyncHandler(async (req, res) => {
-  const task = await Task.findByIdAndDelete(req.params.taskId);
+  const task = await Task.findById(req.params.taskId);
   if (!task) throw new ApiError(404, "Task not found");
+  const { chapter, project, isStudent } = await assertTaskAccess(req.user, task);
+  if (!isStudent || task.isLocked || chapter.isLocked || project.isLocked) throw new ApiError(403, "This task cannot be deleted");
+  await task.deleteOne();
   return sendSuccess(res, 200, "Task deleted");
 });
 
 // PATCH /tasks/:taskId/complete
 const completeTask = asyncHandler(async (req, res) => {
-  const task = await Task.findByIdAndUpdate(
-    req.params.taskId,
-    { status: "Completed", completionDate: new Date() },
-    { new: true }
-  );
+  const task = await Task.findById(req.params.taskId);
   if (!task) throw new ApiError(404, "Task not found");
+  const { chapter, project, isStudent } = await assertTaskAccess(req.user, task);
+  if (!isStudent || task.isLocked || chapter.isLocked || project.isLocked) throw new ApiError(403, "This task is locked or does not belong to you");
+  task.status = "Completed";
+  task.completionDate = new Date();
+  await task.save();
   return sendSuccess(res, 200, "Task marked complete", task);
 });
 
@@ -62,9 +99,38 @@ const completeTask = asyncHandler(async (req, res) => {
 const updateTaskStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   if (!status) throw new ApiError(400, "status is required");
-  const task = await Task.findByIdAndUpdate(req.params.taskId, { status }, { new: true });
+  const task = await Task.findById(req.params.taskId);
   if (!task) throw new ApiError(404, "Task not found");
+  const { chapter, project, isStudent } = await assertTaskAccess(req.user, task);
+  if (!isStudent || task.isLocked || chapter.isLocked || project.isLocked) throw new ApiError(403, "This task is locked or does not belong to you");
+  task.status = status;
+  await task.save();
   return sendSuccess(res, 200, "Task status updated", task);
+});
+
+const setTaskLock = (isLocked) => asyncHandler(async (req, res) => {
+  const task = await Task.findById(req.params.taskId);
+  if (!task) throw new ApiError(404, "Task not found");
+  const { isSupervisor } = await assertTaskAccess(req.user, task);
+  if (!isSupervisor) throw new ApiError(403, "Only the assigned supervisor can change this lock");
+  task.isLocked = isLocked;
+  await task.save();
+  return sendSuccess(res, 200, `Task ${isLocked ? "locked" : "unlocked"}`, task);
+});
+
+const lockTask = setTaskLock(true);
+const unlockTask = setTaskLock(false);
+
+const addTaskFeedback = asyncHandler(async (req, res) => {
+  const { comment } = req.body;
+  if (!comment?.trim()) throw new ApiError(400, "comment is required");
+  const task = await Task.findById(req.params.taskId);
+  if (!task) throw new ApiError(404, "Task not found");
+  const { isSupervisor } = await assertTaskAccess(req.user, task);
+  if (!isSupervisor) throw new ApiError(403, "Only the assigned supervisor can add feedback");
+  task.feedback.push({ comment: comment.trim(), createdBy: req.user._id });
+  await task.save();
+  return sendSuccess(res, 201, "Task feedback added", task.feedback[task.feedback.length - 1]);
 });
 
 // POST /tasks/:taskId/checklists  { title }
@@ -74,6 +140,8 @@ const addChecklistItem = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(req.params.taskId);
   if (!task) throw new ApiError(404, "Task not found");
+  const { chapter, project, isStudent } = await assertTaskAccess(req.user, task);
+  if (!isStudent || task.isLocked || chapter.isLocked || project.isLocked) throw new ApiError(403, "This task is locked or does not belong to you");
 
   task.checklist.push({ title });
   await task.save();
@@ -162,4 +230,7 @@ module.exports = {
   completeChecklistItem,
   addEvidence,
   deleteEvidence,
+  lockTask,
+  unlockTask,
+  addTaskFeedback,
 };

@@ -3,11 +3,16 @@ const router = express.Router();
 
 const {
   createProject,
+  createSupervisorProject,
+  getSupervisorAvailableStudents,
+  updateSupervisorProjectType,
   getProjects,
   updateProject,
   deleteProject,
   getMyProject,
   getAssignedProjects,
+  getSupervisorAssignedStudents,
+  getMySupervisorAssignment,
   getProjectById,
   getProjectMembers,
   getProjectSupervisor,
@@ -21,7 +26,11 @@ const { protect, authorize } = require("../middleware/auth");
 router.use(protect);
 
 // Coordinator project management
-router.post("/coordinator/projects", authorize("coordinator"), createProject);
+// Project creation belongs to supervisors. Coordinators retain project
+// visibility and student-allocation responsibilities.
+router.post("/supervisor/projects", authorize("supervisor"), createSupervisorProject);
+router.get("/supervisor/available-students", authorize("supervisor"), getSupervisorAvailableStudents);
+router.patch("/supervisor/projects/:projectID/type", authorize("supervisor"), updateSupervisorProjectType);
 router.get("/coordinator/projects", authorize("coordinator"), getProjects);
 router.patch("/coordinator/projects/:projectID", authorize("coordinator"), updateProject);
 router.delete("/coordinator/projects/:projectID", authorize("coordinator"), deleteProject);
@@ -30,6 +39,8 @@ router.delete("/coordinator/projects/:projectID", authorize("coordinator"), dele
 // route below, or Express would try to match "my-project"/"search"/"assigned" as an id.
 router.get("/projects/my-project", authorize("student"), getMyProject);
 router.get("/projects/assigned", authorize("supervisor"), getAssignedProjects);
+router.get("/student/my-supervisor", authorize("student"), getMySupervisorAssignment);
+router.get("/supervisor/assigned-students", authorize("supervisor"), getSupervisorAssignedStudents);
 router.get("/projects/search", getProjects);
 // Was singular "/project/filter" (inconsistent with every other route here) - fixed to plural.
 router.get("/projects/filter", getProjects);

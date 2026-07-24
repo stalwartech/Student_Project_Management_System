@@ -27,12 +27,21 @@ export function MeetingsPage() {
   }, []);
 
   const handleJoin = async (id: string) => {
+    // Open the tab while this click is still a user gesture. Opening it after
+    // the awaited API request is commonly treated as a popup and blocked.
+    const meetingWindow = window.open("about:blank", "_blank");
     setJoining(id);
     try {
       const res = await meetingApi.join(id);
-      window.open(res.data.data.meetingURL, "_blank", "noopener,noreferrer");
+      const meetingURL = res.data.data.meetingURL;
+      if (!meetingWindow) {
+        window.open(meetingURL, "_blank", "noopener,noreferrer");
+      } else {
+        meetingWindow.location.replace(meetingURL);
+      }
       load();
     } catch (err) {
+      meetingWindow?.close();
       show(getErrorMessage(err), "error");
     } finally {
       setJoining(null);

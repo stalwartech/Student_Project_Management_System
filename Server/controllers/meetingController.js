@@ -5,6 +5,17 @@ const { ApiError, sendSuccess } = require("../utils/apiError");
 const { notifyMany } = require("../utils/notify");
 const logActivity = require("../utils/logActivity");
 
+const normalizeMeetingUrl = (value) => {
+  const url = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Unsupported protocol");
+    return parsed.toString();
+  } catch {
+    throw new ApiError(400, "meetingURL must be a valid http(s) link");
+  }
+};
+
 // POST /meetings  { project, title, description, meetingURL, startedAt }
 const createMeeting = asyncHandler(async (req, res) => {
   const { project, title, description, meetingURL, startedAt } = req.body;
@@ -20,7 +31,7 @@ const createMeeting = asyncHandler(async (req, res) => {
     project,
     title,
     description,
-    meetingURL,
+    meetingURL: normalizeMeetingUrl(meetingURL.trim()),
     startedAt,
     attendees: attendeeIds.map((user) => ({ user, status: "invited" })),
   });

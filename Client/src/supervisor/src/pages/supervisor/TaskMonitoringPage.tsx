@@ -7,6 +7,9 @@ import { PageHeader, Spinner } from "@/components/ui/misc";
 import { Badge, statusColor } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/utils/format";
+import { Button } from "@/components/ui/Button";
+import { getErrorMessage } from "@/api/client";
+import { useToast } from "@/context/ToastContext";
 
 export function TaskMonitoringPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -14,6 +17,33 @@ export function TaskMonitoringPage() {
   const [tasksByChapter, setTasksByChapter] = useState<Record<string, Task[]>>({});
   const [loading, setLoading] = useState(true);
   const [permissionError, setPermissionError] = useState(false);
+  const { show } = useToast();
+
+  const refreshTasks = async () => {
+    if (!projectId) return;
+    const chaptersRes = await chapterApi.list(projectId);
+    const results = await Promise.all(chaptersRes.data.data.map((chapter) => taskApi.listByChapter(chapter._id).then((res) => [chapter._id, res.data.data] as const)));
+    setTasksByChapter(Object.fromEntries(results));
+  };
+
+  const toggleTaskLock = async (task: Task) => {
+    try {
+      if (task.isLocked) await taskApi.unlock(task._id);
+      else await taskApi.lock(task._id);
+      show(`Task ${task.isLocked ? "unlocked" : "locked"}`, "success");
+      refreshTasks();
+    } catch (err) { show(getErrorMessage(err), "error"); }
+  };
+
+  const giveFeedback = async (task: Task) => {
+    const comment = window.prompt(`Feedback for “${task.title}”`);
+    if (!comment?.trim()) return;
+    try {
+      await taskApi.addFeedback(task._id, comment);
+      show("Task feedback sent", "success");
+      refreshTasks();
+    } catch (err) { show(getErrorMessage(err), "error"); }
+  };
 
   useEffect(() => {
     if (!projectId) return;
@@ -50,16 +80,6 @@ export function TaskMonitoringPage() {
       </Link>
       <PageHeader title="Task Monitoring" description="Read-only view of student tasks and checklists" />
 
-      {permissionError && (
-        <div className="card mb-4 border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm text-amber-800">
-            The backend currently restricts task data to students only, so this view can't load yet. This needs a
-            small backend change (allow the supervisor role on the GET /tasks routes) before it will show real data —
-            see the frontend README for the exact fix.
-          </p>
-        </div>
-      )}
-
       {!permissionError && chapters.length === 0 && (
         <EmptyState title="No chapters yet" description="Tasks will appear here once chapters and tasks exist." />
       )}
@@ -87,6 +107,11 @@ export function TaskMonitoringPage() {
                             <Badge color={statusColor(task.status)}>{task.status}</Badge>
                           </div>
                         </div>
+                        <div className="mt-3 flex gap-2">
+                          <Button variant="secondary" className="text-xs" onClick={() => toggleTaskLock(task)}>{task.isLocked ? "Unlock task" : "Lock task"}</Button>
+                          <Button variant="secondary" className="text-xs" onClick={() => giveFeedback(task)}>Give feedback</Button>
+                        </div>
+                        {task.feedback?.length > 0 && <p className="mt-2 text-xs text-gray-500">Latest feedback: {task.feedback[task.feedback.length - 1].comment}</p>}
                         {task.deadline && <p className="mt-1 text-xs text-gray-400">Due {formatDate(task.deadline)}</p>}
                         {total > 0 && (
                           <div className="mt-2">

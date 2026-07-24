@@ -20,6 +20,7 @@ export function MessagesPage() {
   const [thread, setThread] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [unread, setUnread] = useState<Record<string, number>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // A supervisor's messageable contacts are the students on their own
@@ -29,10 +30,18 @@ export function MessagesPage() {
     projectApi.assigned().then((res) => setProjects(res.data.data));
   }, []);
 
+  const loadUnread = () => messageApi.unreadSummary().then((res) => setUnread(res.data.data.privateByUser)).catch(() => {});
+  useEffect(() => { loadUnread(); }, []);
+
   const openConversation = async (contact: Contact) => {
     setActiveContact(contact);
     const res = await messageApi.privateThread(contact._id);
     setThread(res.data.data);
+    await Promise.all(res.data.data.filter((message) => {
+      const senderId = typeof message.sender === "string" ? message.sender : message.sender._id;
+      return senderId !== user?._id;
+    }).map((message) => messageApi.markRead(message._id)));
+    loadUnread();
   };
 
   useEffect(() => {
@@ -76,7 +85,8 @@ export function MessagesPage() {
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
                       {s.name[0]?.toUpperCase()}
                     </span>
-                    <span>{s.name}</span>
+                    <span className="flex-1">{s.name}</span>
+                    {unread[s._id] > 0 && <UnreadDot />}
                   </button>
                 ))
               )}
@@ -121,4 +131,8 @@ export function MessagesPage() {
       </div>
     </div>
   );
+}
+
+function UnreadDot() {
+  return <span className="relative flex h-3 w-3"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex h-3 w-3 rounded-full bg-red-600" /></span>;
 }
