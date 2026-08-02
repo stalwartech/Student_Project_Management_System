@@ -14,7 +14,7 @@ const OTPSchema = new mongoose.Schema(
       required: true,
     },
 
-    
+  
     expiresAt: { type: Date, required: true },
     verified: { type: Boolean, default: false },
   },
