@@ -25,7 +25,9 @@ const verifyActivationToken = (token) =>
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  // Cross-origin frontend/API deployments require SameSite=None. Keep lax as
+  // the local-development default, where both apps share localhost.
+  sameSite: process.env.REFRESH_COOKIE_SAME_SITE || (process.env.NODE_ENV === "production" ? "none" : "lax"),
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   path: "/api/auth/refresh-token",
 };
