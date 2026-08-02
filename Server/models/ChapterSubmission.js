@@ -4,6 +4,8 @@ const chapterSubmissionSchema = new mongoose.Schema(
   {
     chapter: { type: mongoose.Schema.Types.ObjectId, ref: "chapter", required: true },
     PDFFile: { type: String, required: true },
+    cloudinaryPublicId: { type: String },
+    cloudinaryResourceType: { type: String },
     version: { type: Number, required: true, default: 1 },
 
     submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "auth", required: true }, // was missing `ref`

@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router-dom";
 import { chapterApi } from "@/api/chapters";
 import { submissionApi } from "@/api/submissions";
 import { feedbackApi } from "@/api/feedback";
-import { getAccessToken } from "@/api/client";
 import { getErrorMessage } from "@/api/client";
 import type { Chapter, ChapterSubmission, Feedback } from "@/types";
 import { useToast } from "@/context/ToastContext";
@@ -33,16 +32,20 @@ export function ChapterReviewPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState("");
 
-  // Note: this page assumes the chapter's latest submission id is reachable
-  // via the chapter's submission history. In practice you'd likely pass the
-  // submission id in the route too - kept simple here by fetching history
-  // from whatever the most recent known submission id is.
   const loadChapterAndSubmissions = async () => {
     if (!chapterId) return;
     setLoading(true);
-    const chapterRes = await chapterApi.get(chapterId);
-    setChapter(chapterRes.data.data);
-    setLoading(false);
+    try {
+      const [chapterRes, submissionsRes] = await Promise.all([chapterApi.get(chapterId), submissionApi.listByChapter(chapterId)]);
+      setChapter(chapterRes.data.data);
+      const submissions = submissionsRes.data.data;
+      setVersions(submissions);
+      if (submissions.length) await selectVersion(submissions[0]);
+    } catch (err) {
+      show(getErrorMessage(err), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -59,15 +62,8 @@ export function ChapterReviewPage() {
 
   const selectVersion = async (submission: ChapterSubmission) => {
     setActiveSubmission(submission);
-    const token = getAccessToken();
-    const res = await fetch(submissionApi.downloadUrl(submission._id), {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      credentials: "include",
-    });
-    if (res.ok) {
-      const blob = await res.blob();
-      setPdfUrl(window.URL.createObjectURL(blob));
-    }
+    // PDFFile is the secure Cloudinary URL returned by the upload API.
+    setPdfUrl(submission.PDFFile);
     const feedbackRes = await feedbackApi.bySubmission(submission._id);
     setFeedbackThread(feedbackRes.data.data);
   };

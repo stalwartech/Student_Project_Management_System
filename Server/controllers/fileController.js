@@ -1,15 +1,17 @@
-const path = require("path");
-const fs = require("fs");
 const Attachment = require("../models/Attachment");
 const asyncHandler = require("../utils/asyncHandler");
 const { ApiError, sendSuccess } = require("../utils/apiError");
+const { uploadToCloudinary, destroyFromCloudinary } = require("../Config/cloudinary");
 
 // POST /files/upload  (multipart: file)
 const uploadFile = asyncHandler(async (req, res) => {
   if (!req.file) throw new ApiError(400, "file is required");
+  const uploaded = await uploadToCloudinary(req.file, "attachments");
 
   const attachment = await Attachment.create({
-    url: `/uploads/attachments/${req.file.filename}`,
+    url: uploaded.secure_url,
+    cloudinaryPublicId: uploaded.public_id,
+    cloudinaryResourceType: uploaded.resource_type,
     fileName: req.file.originalname,
     mimeType: req.file.mimetype,
     size: req.file.size,
@@ -34,8 +36,7 @@ const downloadFile = asyncHandler(async (req, res) => {
   const file = await Attachment.findById(req.params.fileId);
   if (!file) throw new ApiError(404, "File not found");
 
-  const filePath = path.join(__dirname, "..", file.url.replace(/^\/uploads/, "uploads"));
-  return res.download(filePath, file.fileName || undefined);
+  return res.redirect(302, file.url);
 });
 
 // DELETE /files/:fileId
@@ -43,8 +44,7 @@ const deleteFile = asyncHandler(async (req, res) => {
   const file = await Attachment.findById(req.params.fileId);
   if (!file) throw new ApiError(404, "File not found");
 
-  const filePath = path.join(__dirname, "..", file.url.replace(/^\/uploads/, "uploads"));
-  fs.unlink(filePath, () => {}); // best-effort disk cleanup, doesn't block the DB delete
+  await destroyFromCloudinary(file.cloudinaryPublicId, file.cloudinaryResourceType);
 
   await file.deleteOne();
   return sendSuccess(res, 200, "File deleted");

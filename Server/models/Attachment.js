@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const attachmentSchema = new mongoose.Schema(
   {
     url: { type: String, required: true }, // was `URL` - lowercased for JS-convention consistency
+    cloudinaryPublicId: { type: String },
+    cloudinaryResourceType: { type: String },
     fileName: { type: String },
     mimeType: { type: String },
     size: { type: Number },

@@ -37,5 +37,7 @@ export const taskApi = {
     });
   },
 
+  listEvidence: (taskId: string) => api.get<ApiEnvelope<Attachment[]>>(`/tasks/${taskId}/evidence`),
+
   deleteEvidence: (taskId: string, fileId: string) => api.delete<ApiEnvelope<null>>(`/tasks/${taskId}/evidence/${fileId}`),
 };

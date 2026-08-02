@@ -20,17 +20,22 @@ export function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [newItemTitle, setNewItemTitle] = useState("");
   const [addingItem, setAddingItem] = useState(false);
-  // Uploaded-this-session evidence, since there's no GET endpoint to list a
-  // task's existing evidence on reload (see README - backend gap).
+  // Cloudinary-backed evidence remains available after a page refresh.
   const [uploadedEvidence, setUploadedEvidence] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     if (!taskId) return;
     setLoading(true);
-    const res = await taskApi.get(taskId);
-    setTask(res.data.data);
-    setLoading(false);
+    try {
+      const [taskResponse, evidenceResponse] = await Promise.all([taskApi.get(taskId), taskApi.listEvidence(taskId)]);
+      setTask(taskResponse.data.data);
+      setUploadedEvidence(evidenceResponse.data.data);
+    } catch (err) {
+      show(getErrorMessage(err), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -78,7 +83,7 @@ export function TaskDetailPage() {
     setUploading(true);
     try {
       const res = await taskApi.addEvidence(taskId, file);
-      setUploadedEvidence((prev) => [...prev, res.data.data]);
+      setUploadedEvidence((prev) => [res.data.data, ...prev]);
       show("Evidence uploaded", "success");
     } catch (err) {
       show(getErrorMessage(err), "error");
@@ -184,7 +189,7 @@ export function TaskDetailPage() {
             <input type="file" accept="image/*,video/*" className="hidden" onChange={handleEvidenceUpload} disabled={uploading} />
           </label>
           {uploadedEvidence.length === 0 ? (
-            <p className="text-sm text-gray-400">No evidence uploaded this session.</p>
+            <p className="text-sm text-gray-400">No evidence uploaded yet.</p>
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {uploadedEvidence.map((ev) => (

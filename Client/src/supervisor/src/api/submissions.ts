@@ -2,6 +2,8 @@ import { api } from "./client";
 import type { ApiEnvelope, ChapterSubmission, Feedback } from "@/types";
 
 export const submissionApi = {
+  listByChapter: (chapterId: string) => api.get<ApiEnvelope<ChapterSubmission[]>>("/chapter-submissions", { params: { chapter: chapterId } }),
+
   get: (id: string) => api.get<ApiEnvelope<ChapterSubmission>>(`/chapter-submissions/${id}`),
 
   history: (id: string) => api.get<ApiEnvelope<ChapterSubmission[]>>(`/chapter-submissions/${id}/history`),

@@ -14,6 +14,7 @@ const {
   deleteChecklistItem,
   completeChecklistItem,
   addEvidence,
+  getEvidence,
   deleteEvidence,
   lockTask,
   unlockTask,
@@ -41,6 +42,7 @@ router.delete("/checklists/:checklistId", authorize("student"), deleteChecklistI
 router.patch("/checklist/:checklistId/complete", authorize("student"), completeChecklistItem);
 
 router.post("/tasks/:taskId/evidence", authorize("student"), uploadEvidence.single("file"), addEvidence);
+router.get("/tasks/:taskId/evidence", authorize("student", "supervisor", "coordinator"), getEvidence);
 router.delete("/tasks/:taskId/evidence/:fileId", authorize("student"), deleteEvidence);
 
 module.exports = router;

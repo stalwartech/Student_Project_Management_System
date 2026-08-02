@@ -1,19 +1,6 @@
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-
-const makeStorage = (subfolder) => {
-  const dest = path.join(__dirname, "..", "uploads", subfolder);
-  fs.mkdirSync(dest, { recursive: true });
-
-  return multer.diskStorage({
-    destination: (req, file, cb) => cb(null, dest),
-    filename: (req, file, cb) => {
-      const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      cb(null, `${unique}${path.extname(file.originalname)}`);
-    },
-  });
-};
+// Files stay in memory only long enough to stream them to Cloudinary.
+const cloudStorage = multer.memoryStorage();
 
 const pdfOnly = (req, file, cb) => {
   if (file.mimetype === "application/pdf") return cb(null, true);
@@ -43,28 +30,28 @@ const csvOnly = (req, file, cb) => {
 
 // Chapter submission PDFs
 const uploadSubmission = multer({
-  storage: makeStorage("submissions"),
+  storage: cloudStorage,
   fileFilter: pdfOnly,
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
 
 // Task/checklist evidence (images or short videos)
 const uploadEvidence = multer({
-  storage: makeStorage("evidence"),
+  storage: cloudStorage,
   fileFilter: imageOrVideo,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
 });
 
 // Profile photos
 const uploadPhoto = multer({
-  storage: makeStorage("photos"),
+  storage: cloudStorage,
   fileFilter: imageOnly,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
 // Generic attachments (messages, misc files)
 const uploadAttachment = multer({
-  storage: makeStorage("attachments"),
+  storage: cloudStorage,
   limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
 });
 

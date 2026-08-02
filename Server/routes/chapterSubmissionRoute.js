@@ -5,6 +5,7 @@ const {
   createSubmission,
   addVersion,
   getSubmission,
+  listSubmissions,
   getSubmissionHistory,
   downloadSubmission,
   approveSubmission,
@@ -18,6 +19,7 @@ router.use(protect);
 
 router.post("/chapter-submissions", authorize("student"), uploadSubmission.single("file"), createSubmission);
 router.post("/chapter-submissions/:submissionId/version", authorize("student"), uploadSubmission.single("file"), addVersion);
+router.get("/chapter-submissions", listSubmissions);
 router.get("/chapter-submissions/:submissionId", getSubmission);
 router.get("/chapter-submissions/:submissionId/history", getSubmissionHistory);
 router.get("/chapter-submissions/:submissionId/download", downloadSubmission);

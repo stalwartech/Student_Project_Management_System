@@ -1,4 +1,3 @@
-const path = require("path");
 const ChapterSubmission = require("../models/ChapterSubmission");
 const Chapter = require("../models/Chapter");
 const Feedback = require("../models/Feedback");
@@ -7,6 +6,20 @@ const asyncHandler = require("../utils/asyncHandler");
 const { ApiError, sendSuccess } = require("../utils/apiError");
 const { notify } = require("../utils/notify");
 const logActivity = require("../utils/logActivity");
+const { uploadToCloudinary } = require("../Config/cloudinary");
+
+const sameId = (left, right) => String(left) === String(right);
+const assertSubmissionAccess = async (user, submission) => {
+  const chapter = await Chapter.findById(submission.chapter);
+  if (!chapter) throw new ApiError(404, "Chapter not found");
+  const project = await Project.findById(chapter.project);
+  if (!project) throw new ApiError(404, "Project not found");
+  const isStudent = project.students.some((student) => sameId(student, user._id));
+  const isSupervisor = project.supervisor && sameId(project.supervisor, user._id);
+  if (user.role !== "coordinator" && !isStudent && !isSupervisor) {
+    throw new ApiError(403, "You do not have access to this submission");
+  }
+};
 
 // POST /chapter-submissions  (multipart: pdf field "file", body: chapter)
 const createSubmission = asyncHandler(async (req, res) => {
@@ -17,10 +30,13 @@ const createSubmission = asyncHandler(async (req, res) => {
   const chapter = await Chapter.findById(chapterId);
   if (!chapter) throw new ApiError(404, "Chapter not found");
   if (chapter.isLocked) throw new ApiError(403, "This chapter is locked for submissions");
+  const uploaded = await uploadToCloudinary(req.file, "submissions");
 
   const submission = await ChapterSubmission.create({
     chapter: chapterId,
-    PDFFile: `/uploads/submissions/${req.file.filename}`,
+    PDFFile: uploaded.secure_url,
+    cloudinaryPublicId: uploaded.public_id,
+    cloudinaryResourceType: uploaded.resource_type,
     version: 1,
     submittedBy: req.user._id,
     status: "pending",
@@ -55,6 +71,7 @@ const addVersion = asyncHandler(async (req, res) => {
   const previous = await ChapterSubmission.findById(req.params.submissionId);
   if (!previous) throw new ApiError(404, "Submission not found");
   if (!req.file) throw new ApiError(400, "PDF file is required");
+  const uploaded = await uploadToCloudinary(req.file, "submissions");
 
   const latestVersion = await ChapterSubmission.findOne({ chapter: previous.chapter })
     .sort({ version: -1 })
@@ -62,7 +79,9 @@ const addVersion = asyncHandler(async (req, res) => {
 
   const submission = await ChapterSubmission.create({
     chapter: previous.chapter,
-    PDFFile: `/uploads/submissions/${req.file.filename}`,
+    PDFFile: uploaded.secure_url,
+    cloudinaryPublicId: uploaded.public_id,
+    cloudinaryResourceType: uploaded.resource_type,
     version: (latestVersion?.version || 0) + 1,
     submittedBy: req.user._id,
     status: "pending",
@@ -84,13 +103,25 @@ const getSubmission = asyncHandler(async (req, res) => {
     .populate("submittedBy", "name matric")
     .populate("reviewedBy", "name title");
   if (!submission) throw new ApiError(404, "Submission not found");
+  await assertSubmissionAccess(req.user, submission);
   return sendSuccess(res, 200, "Submission", submission);
+});
+
+// GET /chapter-submissions?chapter=:chapterId
+const listSubmissions = asyncHandler(async (req, res) => {
+  if (!req.query.chapter) throw new ApiError(400, "chapter is required");
+  const chapter = await Chapter.findById(req.query.chapter);
+  if (!chapter) throw new ApiError(404, "Chapter not found");
+  await assertSubmissionAccess(req.user, { chapter: chapter._id });
+  const submissions = await ChapterSubmission.find({ chapter: chapter._id }).sort({ version: -1 });
+  return sendSuccess(res, 200, "Submissions", submissions);
 });
 
 // GET /chapter-submissions/:submissionId/history  (all versions for the same chapter)
 const getSubmissionHistory = asyncHandler(async (req, res) => {
   const submission = await ChapterSubmission.findById(req.params.submissionId);
   if (!submission) throw new ApiError(404, "Submission not found");
+  await assertSubmissionAccess(req.user, submission);
 
   const history = await ChapterSubmission.find({ chapter: submission.chapter }).sort({ version: 1 });
   return sendSuccess(res, 200, "Submission history", history);
@@ -100,9 +131,9 @@ const getSubmissionHistory = asyncHandler(async (req, res) => {
 const downloadSubmission = asyncHandler(async (req, res) => {
   const submission = await ChapterSubmission.findById(req.params.submissionId);
   if (!submission) throw new ApiError(404, "Submission not found");
+  await assertSubmissionAccess(req.user, submission);
 
-  const filePath = path.join(__dirname, "..", submission.PDFFile.replace(/^\/uploads/, "uploads"));
-  return res.download(filePath);
+  return res.redirect(302, submission.PDFFile);
 });
 
 const reviewSubmission = async ({ submissionId, reviewer, status, comment }) => {
@@ -192,6 +223,7 @@ module.exports = {
   createSubmission,
   addVersion,
   getSubmission,
+  listSubmissions,
   getSubmissionHistory,
   downloadSubmission,
   approveSubmission,

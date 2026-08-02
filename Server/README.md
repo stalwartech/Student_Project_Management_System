@@ -2,7 +2,7 @@
 
 This is a full rebuild of your uploaded `models/` and `routes/` into a working
 Express + MongoDB backend: fixed models, real controllers, wired routes,
-JWT auth (access + refresh tokens), and local-disk file uploads via multer.
+JWT auth (access + refresh tokens), and Cloudinary-backed uploads via multer.
 
 Verified before delivery: every file passes `node --check`, every model/
 controller/route module `require()`s cleanly, and every one of the 21 route
@@ -18,8 +18,9 @@ npm run dev             # or: npm start
 ```
 
 MongoDB must be running and reachable at `MONGO_URI`. Uploaded files are
-written to `/uploads/{photos,submissions,evidence,attachments}` and served
-at `http://localhost:<PORT>/uploads/...`.
+streamed to Cloudinary. The returned Cloudinary URL is saved with the
+attachment/submission, so images, videos, PDFs, and other documents display
+directly from Cloudinary.
 
 ## Folder structure
 
@@ -32,7 +33,7 @@ utils/                  tokens, OTP, email, CSV parsing, activity logging,
                         notifications, allocation engine, report export
 controllers/            one file per route file
 routes/                 your 19 route files, fixed and wired + 2 new ones
-uploads/                local file storage (gitignore this in your repo)
+Config/cloudinary.js    signed Cloudinary upload/delete helper
 server.js               mounts everything
 ```
 
@@ -133,9 +134,8 @@ Also fixed:
   chapters exist yet for this project." If you meant something narrower or
   broader (e.g. no submissions yet, regardless of chapters), tell me and
   I'll adjust the check in `projectController.deleteProject`.
-- **File storage**: local disk under `/uploads`, per your answer — note this
-  won't survive redeploys on most hosting platforms (Heroku, Render, etc.)
-  without a persistent volume. Worth revisiting before you deploy.
+- **File storage**: uploads are sent to Cloudinary and their secure URLs are
+  persisted in MongoDB, so they survive backend redeploys.
 - **Auto Allocation**: a straightforward greedy allocator (first project with
   capacity + supervisor under their hard limit). It's a reasonable starting
   point but not a true optimizer — if you want something smarter (e.g.

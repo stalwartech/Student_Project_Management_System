@@ -1,11 +1,10 @@
-const fs = require("fs");
-const path = require("path");
 const Task = require("../models/Task");
 const Chapter = require("../models/Chapter");
 const Project = require("../models/Project");
 const Attachment = require("../models/Attachment");
 const asyncHandler = require("../utils/asyncHandler");
 const { ApiError, sendSuccess } = require("../utils/apiError");
+const { uploadToCloudinary, destroyFromCloudinary } = require("../Config/cloudinary");
 
 const sameId = (left, right) => String(left) === String(right);
 const assertTaskAccess = async (user, task) => {
@@ -191,9 +190,16 @@ const addEvidence = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(req.params.taskId);
   if (!task) throw new ApiError(404, "Task not found");
+  const { chapter, project, isStudent } = await assertTaskAccess(req.user, task);
+  if (!isStudent || task.isLocked || chapter.isLocked || project.isLocked) {
+    throw new ApiError(403, "This task is locked or does not belong to you");
+  }
+  const uploaded = await uploadToCloudinary(req.file, "evidence");
 
   const attachment = await Attachment.create({
-    url: `/uploads/evidence/${req.file.filename}`,
+    url: uploaded.secure_url,
+    cloudinaryPublicId: uploaded.public_id,
+    cloudinaryResourceType: uploaded.resource_type,
     fileName: req.file.originalname,
     mimeType: req.file.mimetype,
     size: req.file.size,
@@ -204,13 +210,20 @@ const addEvidence = asyncHandler(async (req, res) => {
   return sendSuccess(res, 201, "Evidence uploaded", attachment);
 });
 
+const getEvidence = asyncHandler(async (req, res) => {
+  const task = await Task.findById(req.params.taskId);
+  if (!task) throw new ApiError(404, "Task not found");
+  await assertTaskAccess(req.user, task);
+  const evidence = await Attachment.find({ task: task._id }).sort({ createdAt: -1 });
+  return sendSuccess(res, 200, "Evidence", evidence);
+});
+
 // DELETE /tasks/:taskId/evidence/:fileId
 const deleteEvidence = asyncHandler(async (req, res) => {
   const attachment = await Attachment.findOne({ _id: req.params.fileId, task: req.params.taskId });
   if (!attachment) throw new ApiError(404, "Evidence not found");
 
-  const filePath = path.join(__dirname, "..", attachment.url.replace(/^\/uploads/, "uploads"));
-  fs.unlink(filePath, () => {});
+  await destroyFromCloudinary(attachment.cloudinaryPublicId, attachment.cloudinaryResourceType);
   await attachment.deleteOne();
 
   return sendSuccess(res, 200, "Evidence deleted");
@@ -229,6 +242,7 @@ module.exports = {
   deleteChecklistItem,
   completeChecklistItem,
   addEvidence,
+  getEvidence,
   deleteEvidence,
   lockTask,
   unlockTask,
