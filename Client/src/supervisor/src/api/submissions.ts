@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, API_BASE_URL } from "./client";
 import type { ApiEnvelope, ChapterSubmission, Feedback } from "@/types";
 
 export const submissionApi = {
@@ -8,7 +8,7 @@ export const submissionApi = {
 
   history: (id: string) => api.get<ApiEnvelope<ChapterSubmission[]>>(`/chapter-submissions/${id}/history`),
 
-  downloadUrl: (id: string) => `/api/chapter-submissions/${id}/download`,
+  downloadUrl: (id: string) => `${API_BASE_URL}/chapter-submissions/${id}/download`,
 
   approve: (id: string, comment?: string) =>
     api.patch<ApiEnvelope<{ submission: ChapterSubmission; feedback: Feedback }>>(`/chapter-submissions/${id}/approve`, { comment }),

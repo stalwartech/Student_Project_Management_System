@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, API_BASE_URL } from "./client";
 import type {
   ApiEnvelope,
   DashboardStats,
@@ -31,7 +31,7 @@ export const settingsApi = {
 };
 
 export const reportApi = {
-  downloadUrl: (type: ReportType, format: "csv" | "excel" | "pdf") => `/api/reports/${type}?format=${format}`,
+  downloadUrl: (type: ReportType, format: "csv" | "excel" | "pdf") => `${API_BASE_URL}/reports/${type}?format=${format}`,
 };
 
 export const notificationApi = {

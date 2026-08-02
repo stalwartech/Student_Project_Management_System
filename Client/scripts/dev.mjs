@@ -2,12 +2,17 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { connect } from 'node:net'
 import { join } from 'node:path'
+import { config as loadDotenv } from 'dotenv'
 
 const clientDirectory = process.cwd()
 const projectDirectory = join(clientDirectory, '..')
 const serverDirectory = join(projectDirectory, 'Server')
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-const apiPort = 3021
+loadDotenv({ path: join(clientDirectory, '.env') })
+
+const apiServerUrl = new URL(process.env.API_SERVER_URL || 'http://127.0.0.1:5000')
+const apiPort = Number(apiServerUrl.port || (apiServerUrl.protocol === 'https:' ? 443 : 80))
+const clientPort = Number(process.env.CLIENT_PORT || 5172)
 
 const isPortOpen = (port) => new Promise((resolve) => {
   const socket = connect({ host: '127.0.0.1', port })
@@ -22,8 +27,14 @@ const apiIsRunning = await isPortOpen(apiPort)
 if (apiIsRunning) console.log(`[API] Reusing the server already running on port ${apiPort}.`)
 
 const applications = [
-  ...(apiIsRunning ? [] : [{ name: 'API', directory: serverDirectory, port: apiPort, command: ['run', 'dev'] }]),
-  { name: 'SPMS', directory: '.', port: 5172, command: ['run', 'dev:launcher'] },
+  ...(apiIsRunning ? [] : [{
+    name: 'API',
+    directory: serverDirectory,
+    port: apiPort,
+    command: ['run', 'dev'],
+    env: { PORT: String(apiPort) },
+  }]),
+  { name: 'SPMS', directory: '.', port: clientPort, command: ['run', 'dev:launcher'] },
 ]
 
 const children = []
@@ -44,7 +55,11 @@ for (const application of applications) {
     continue
   }
 
-  const child = spawn(npmCommand, application.command, { cwd: directory, stdio: 'inherit' })
+  const child = spawn(npmCommand, application.command, {
+    cwd: directory,
+    stdio: 'inherit',
+    env: { ...process.env, ...application.env },
+  })
   children.push(child)
   child.on('exit', (code) => { if (code && !stopping) process.exitCode = code })
 }

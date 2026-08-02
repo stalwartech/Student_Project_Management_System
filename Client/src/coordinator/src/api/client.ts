@@ -2,13 +2,16 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 let accessToken: string | null = null;
 
+const apiOrigin = import.meta.env.VITE_API_ORIGIN?.replace(/\/$/, "") ?? "";
+export const API_BASE_URL = `${apiOrigin}/api`;
+
 export const setAccessToken = (token: string | null) => {
   accessToken = token;
 };
 export const getAccessToken = () => accessToken;
 
 export const api = axios.create({
-  baseURL: "/api",
+  baseURL: API_BASE_URL,
   withCredentials: true, // sends the httpOnly refreshToken cookie
 });
 
@@ -27,7 +30,7 @@ let refreshPromise: Promise<string | null> | null = null;
 const refreshAccessToken = async (): Promise<string | null> => {
   try {
     const res = await axios.post(
-      "/api/auth/refresh-token",
+      `${API_BASE_URL}/auth/refresh-token`,
       {},
       { withCredentials: true }
     );
