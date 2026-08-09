@@ -13,6 +13,8 @@ loadDotenv({ path: join(clientDirectory, '.env') })
 const apiServerUrl = new URL(process.env.API_SERVER_URL || 'http://127.0.0.1:5000')
 const apiPort = Number(apiServerUrl.port || (apiServerUrl.protocol === 'https:' ? 443 : 80))
 const clientPort = Number(process.env.CLIENT_PORT || 5172)
+const localApiHosts = new Set(['127.0.0.1', 'localhost', '::1'])
+const useLocalApi = localApiHosts.has(apiServerUrl.hostname)
 
 const isPortOpen = (port) => new Promise((resolve) => {
   const socket = connect({ host: '127.0.0.1', port })
@@ -23,17 +25,22 @@ const isPortOpen = (port) => new Promise((resolve) => {
   socket.once('error', () => resolve(false))
 })
 
-const apiIsRunning = await isPortOpen(apiPort)
-if (apiIsRunning) console.log(`[API] Reusing the server already running on port ${apiPort}.`)
+const apiIsRunning = useLocalApi && await isPortOpen(apiPort)
+if (useLocalApi && apiIsRunning) {
+  console.log(`[API] Reusing the server already running on port ${apiPort}.`)
+}
+if (!useLocalApi) {
+  console.log(`[API] Using remote API at ${apiServerUrl.origin}.`)
+}
 
 const applications = [
-  ...(apiIsRunning ? [] : [{
+  ...(useLocalApi && !apiIsRunning ? [{
     name: 'API',
     directory: serverDirectory,
     port: apiPort,
     command: ['run', 'dev'],
     env: { PORT: String(apiPort) },
-  }]),
+  }] : []),
   { name: 'SPMS', directory: '.', port: clientPort, command: ['run', 'dev:launcher'] },
 ]
 

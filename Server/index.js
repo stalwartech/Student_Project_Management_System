@@ -36,7 +36,7 @@ if (process.env.NODE_ENV !== "test") app.use(morgan("dev"));
 // Serve uploaded files (PDFs, evidence, photos, attachments) statically.
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.get("/api/health", (req, res) => res.json({ success: true, message: "SPMS API is running" }));
+app.get("/", (req, res) => res.json({ success: true, message: "SPMS API is running" }));
 
 const API_PREFIX = "/api";
 
