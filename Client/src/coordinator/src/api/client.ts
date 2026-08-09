@@ -2,7 +2,7 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 let accessToken: string | null = null;
 
-const apiOrigin = import.meta.env.VITE_API_ORIGIN?.replace(/\/$/, "") ?? "";
+const apiOrigin = import.meta.env.VITE_API_ORIGIN?.trim().replace(/\/$/, "") ?? "";
 export const API_BASE_URL = `${apiOrigin}/api`;
 
 export const setAccessToken = (token: string | null) => {

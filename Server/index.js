@@ -12,8 +12,10 @@ const { verifyEmailTransport } = require("./utils/sendEmail");
 
 const app = express();
 
+const normalizeOrigin = (value) => value?.trim().replace(/\/$/, "");
+
 const allowedOrigins = new Set([
-  process.env.CLIENT_URL,
+  normalizeOrigin(process.env.CLIENT_URL),
   "http://localhost:5172",
   "http://localhost:5173",
   "http://localhost:5174",
@@ -23,7 +25,7 @@ const allowedOrigins = new Set([
 app.use(cors({
   origin(origin, callback) {
     // Non-browser requests have no Origin header; permit them for local tooling.
-    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    if (!origin || allowedOrigins.has(normalizeOrigin(origin))) return callback(null, true);
     return callback(new Error(`Origin ${origin} is not allowed by CORS`));
   },
   credentials: true,
