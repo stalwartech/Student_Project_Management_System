@@ -20,6 +20,8 @@
   },
   "homepage": "https://github.com/stalwartech/Student_Project_Management_System#readme",
   "dependencies": {
-    "concurrently": "^10.0.3"
+    "@sendgrid/mail": "^8.1.6",
+    "concurrently": "^10.0.3",
+    "dotenv": "^17.4.2"
   }
 }
