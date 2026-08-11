@@ -6,6 +6,7 @@ const {
   createSupervisorProject,
   getSupervisorAvailableStudents,
   updateSupervisorProjectType,
+  startSupervisorProject,
   getProjects,
   updateProject,
   deleteProject,
@@ -31,6 +32,7 @@ router.use(protect);
 router.post("/supervisor/projects", authorize("supervisor"), createSupervisorProject);
 router.get("/supervisor/available-students", authorize("supervisor"), getSupervisorAvailableStudents);
 router.patch("/supervisor/projects/:projectID/type", authorize("supervisor"), updateSupervisorProjectType);
+router.patch("/supervisor/projects/:projectID/start", authorize("supervisor"), startSupervisorProject);
 router.get("/coordinator/projects", authorize("coordinator"), getProjects);
 router.patch("/coordinator/projects/:projectID", authorize("coordinator"), updateProject);
 router.delete("/coordinator/projects/:projectID", authorize("coordinator"), deleteProject);

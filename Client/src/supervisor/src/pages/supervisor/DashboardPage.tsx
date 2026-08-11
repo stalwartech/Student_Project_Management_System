@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { projectApi } from "@/api/projects";
 import { meetingApi } from "@/api/meetings";
 import { feedbackApi } from "@/api/feedback";
-import type { Project, Meeting, Feedback } from "@/types";
+import { chapterApi } from "@/api/chapters";
+import type { Project, Meeting, Feedback, Chapter } from "@/types";
 import { PageHeader, Spinner } from "@/components/ui/misc";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge, statusColor } from "@/components/ui/Badge";
@@ -13,6 +14,7 @@ export function SupervisorDashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [chaptersByProject, setChaptersByProject] = useState<Record<string, Chapter[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +27,11 @@ export function SupervisorDashboardPage() {
       setProjects(projectsRes.data.data);
       setMeetings(meetingsRes.data.data);
       setFeedback(feedbackRes.data.data);
+      const chapters = await Promise.all(projectsRes.data.data.map(async (project) => {
+        const response = await chapterApi.list(project._id);
+        return [project._id, response.data.data] as const;
+      }));
+      setChaptersByProject(Object.fromEntries(chapters));
       setLoading(false);
     })();
   }, []);
@@ -62,9 +69,16 @@ export function SupervisorDashboardPage() {
             <ul className="divide-y divide-gray-100">
               {projects.map((p) => (
                 <li key={p._id} className="flex items-center justify-between py-2">
-                  <Link to={`/supervisor/projects/${p._id}`} className="text-sm font-medium text-brand-700 hover:underline">
-                    {p.title}
-                  </Link>
+                  <div>
+                    <Link to={`/supervisor/projects/${p._id}`} className="text-sm font-medium text-brand-700 hover:underline">
+                      {p.title}
+                    </Link>
+                    {(() => {
+                      const currentChapter = chaptersByProject[p._id]?.find((chapter) => ["In Progress", "Submitted", "Approved"].includes(chapter.status))
+                        ?? chaptersByProject[p._id]?.find((chapter) => chapter.status === "Not Started");
+                      return <p className="text-xs text-gray-400">Current chapter: {currentChapter?.title ?? "—"}</p>;
+                    })()}
+                  </div>
                   <Badge color={statusColor(p.status)}>{p.status}</Badge>
                 </li>
               ))}

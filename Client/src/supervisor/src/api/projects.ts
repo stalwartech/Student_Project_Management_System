@@ -22,6 +22,8 @@ export const projectApi = {
   updateType: (id: string, projectType: ProjectType) =>
     api.patch<ApiEnvelope<Project>>(`/supervisor/projects/${id}/type`, { projectType }),
 
+  start: (id: string) => api.patch<ApiEnvelope<Project>>(`/supervisor/projects/${id}/start`),
+
   get: (id: string) => api.get<ApiEnvelope<Project>>(`/projects/${id}`),
 
   members: (id: string) =>

@@ -3,6 +3,7 @@ const Project = require("../models/Project");
 const asyncHandler = require("../utils/asyncHandler");
 const { ApiError, sendSuccess } = require("../utils/apiError");
 const logActivity = require("../utils/logActivity");
+const { syncProjectProgress } = require("../utils/syncProjectProgress");
 
 const sameId = (left, right) => String(left) === String(right);
 
@@ -27,6 +28,7 @@ const createChapter = asyncHandler(async (req, res) => {
   }
   if (projectDoc.isLocked) throw new ApiError(403, "This project is locked");
   const chapter = await Chapter.create({ title, project, chapterNumber, deadline, priority, createdBy: req.user._id });
+  await syncProjectProgress(projectDoc._id);
   return sendSuccess(res, 201, "Chapter created", chapter);
 });
 
@@ -57,6 +59,7 @@ const updateChapter = asyncHandler(async (req, res) => {
   const allowed = ["title", "chapterNumber", "deadline", "priority", "status", "startDate"];
   Object.assign(chapter, Object.fromEntries(Object.entries(req.body).filter(([key]) => allowed.includes(key))));
   await chapter.save();
+  await syncProjectProgress(project._id);
   return sendSuccess(res, 200, "Chapter updated", chapter);
 });
 
@@ -90,6 +93,7 @@ const completeChapter = asyncHandler(async (req, res) => {
   chapter.status = "Completed";
   chapter.completionDate = new Date();
   await chapter.save();
+  await syncProjectProgress(chapter.project);
   await logActivity({ actor: req.user._id, action: "chapter_completed", entityType: "chapter", entityId: chapter._id, project: chapter.project });
   return sendSuccess(res, 200, "Chapter marked complete", chapter);
 });

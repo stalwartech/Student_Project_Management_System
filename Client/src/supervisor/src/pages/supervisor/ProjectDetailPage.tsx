@@ -25,6 +25,7 @@ export function ProjectDetailPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [lockToggling, setLockToggling] = useState(false);
   const [changingType, setChangingType] = useState(false);
+  const [starting, setStarting] = useState(false);
 
 
   const load = async () => {
@@ -80,6 +81,20 @@ export function ProjectDetailPage() {
     }
   };
 
+  const startProject = async () => {
+    if (!project) return;
+    setStarting(true);
+    try {
+      const response = await projectApi.start(project._id);
+      setProject(response.data.data);
+      show("Project started", "success");
+    } catch (err) {
+      show(getErrorMessage(err), "error");
+    } finally {
+      setStarting(false);
+    }
+  };
+
   if (loading || !project) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -99,6 +114,11 @@ export function ProjectDetailPage() {
         actions={
           <>
             <Badge color={statusColor(project.status)}>{project.status}</Badge>
+            {project.status === "Not Started" && (
+              <Button onClick={startProject} loading={starting}>
+                Start project
+              </Button>
+            )}
             <Button variant={project.isLocked ? "primary" : "secondary"} onClick={toggleLock} loading={lockToggling}>
               {project.isLocked ? "Unlock submissions" : "Lock submissions"}
             </Button>

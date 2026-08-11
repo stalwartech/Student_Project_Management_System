@@ -26,6 +26,7 @@ export function ChapterReviewPage() {
   const [feedbackThread, setFeedbackThread] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [lockToggling, setLockToggling] = useState(false);
+  const [completing, setCompleting] = useState(false);
 
   const [reviewAction, setReviewAction] = useState<ReviewAction | null>(null);
   const [comment, setComment] = useState("");
@@ -83,6 +84,20 @@ export function ChapterReviewPage() {
     }
   };
 
+  const completeChapter = async () => {
+    if (!chapter) return;
+    setCompleting(true);
+    try {
+      await chapterApi.complete(chapter._id);
+      show("Chapter marked complete", "success");
+      loadChapterAndSubmissions();
+    } catch (err) {
+      show(getErrorMessage(err), "error");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const submitReview = async () => {
     if (!activeSubmission || !reviewAction) return;
     if (reviewAction === "request-revision" && !comment.trim()) {
@@ -130,6 +145,11 @@ export function ChapterReviewPage() {
             <Button variant="secondary" onClick={toggleLock} loading={lockToggling}>
               {chapter.isLocked ? "Unlock chapter" : "Lock chapter"}
             </Button>
+            {chapter.status !== "Completed" && (
+              <Button onClick={completeChapter} loading={completing}>
+                Mark complete
+              </Button>
+            )}
           </>
         }
       />

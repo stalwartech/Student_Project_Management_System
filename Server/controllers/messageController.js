@@ -4,10 +4,28 @@ const asyncHandler = require("../utils/asyncHandler");
 const { ApiError, sendSuccess } = require("../utils/apiError");
 const { notify } = require("../utils/notify");
 
+const isProjectParticipant = (project, userId) =>
+  String(project.supervisor) === String(userId) || project.students.some((studentId) => String(studentId) === String(userId));
+
+const getProjectForParticipant = async (projectId, userId) => {
+  const project = await Project.findById(projectId).select("students supervisor");
+  if (!project) throw new ApiError(404, "Project not found");
+  if (!isProjectParticipant(project, userId)) {
+    throw new ApiError(403, "You are not a member of this project group");
+  }
+  return project;
+};
+
 // POST /messages  { chatType, project?, recipient?, content?, attachment? }
 const sendMessage = asyncHandler(async (req, res) => {
   const { chatType, project, recipient, content, attachment } = req.body;
   if (!chatType) throw new ApiError(400, "chatType is required");
+
+  let groupProject;
+  if (chatType === "Project Group") {
+    if (!project) throw new ApiError(400, "project is required for Project Group messages");
+    groupProject = await getProjectForParticipant(project, req.user._id);
+  }
 
   const message = await Message.create({
     sender: req.user._id,
@@ -20,9 +38,8 @@ const sendMessage = asyncHandler(async (req, res) => {
 
   if (chatType === "Private" && recipient) {
     await notify({ sender: req.user._id, recipient, title: "New message", message: content || "Sent an attachment" });
-  } else if (chatType === "Project Group" && project) {
-    const proj = await Project.findById(project).select("students supervisor");
-    const recipients = [...(proj?.students || []), proj?.supervisor].filter(
+  } else if (chatType === "Project Group") {
+    const recipients = [...groupProject.students, groupProject.supervisor].filter(
       (id) => id && String(id) !== String(req.user._id)
     );
     await Promise.all(
@@ -51,6 +68,7 @@ const getPrivateConversation = asyncHandler(async (req, res) => {
 
 // GET /messages/project/:projectId  - group chat history for a project
 const getProjectConversation = asyncHandler(async (req, res) => {
+  await getProjectForParticipant(req.params.projectId, req.user._id);
   const messages = await Message.find({ chatType: "Project Group", project: req.params.projectId })
     .populate("sender", "name role")
     .sort({ createdAt: 1 });
@@ -81,8 +99,12 @@ const getUnreadSummary = asyncHandler(async (req, res) => {
     recipient: req.user._id,
     status: { $ne: "read" },
   }).select("sender");
+  const groupProjectIds = await Project.find({
+    $or: [{ supervisor: req.user._id }, { students: req.user._id }],
+  }).distinct("_id");
   const groupMessages = await Message.find({
     chatType: "Project Group",
+    project: { $in: groupProjectIds },
     sender: { $ne: req.user._id },
     readBy: { $ne: req.user._id },
   }).select("project");

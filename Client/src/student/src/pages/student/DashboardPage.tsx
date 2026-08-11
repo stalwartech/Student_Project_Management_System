@@ -74,7 +74,8 @@ export function StudentDashboardPage() {
     );
   }
 
-  const currentChapter = chapters.find((c) => c.status === "In Progress" || c.status === "Submitted") ?? chapters[0];
+  const currentChapter = chapters.find((c) => ["In Progress", "Submitted", "Approved"].includes(c.status))
+    ?? chapters.find((c) => c.status === "Not Started");
   const upcomingMeetings = meetings
     .filter((m) => m.status === "scheduled")
     .sort((a, b) => new Date(a.startedAt ?? 0).getTime() - new Date(b.startedAt ?? 0).getTime());

@@ -13,14 +13,18 @@ interface Contact {
   matric?: string;
 }
 
+type Conversation =
+  | { kind: "private"; contact: Contact }
+  | { kind: "group"; project: Project };
+
 export function MessagesPage() {
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [activeContact, setActiveContact] = useState<Contact | null>(null);
+  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const [thread, setThread] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [unread, setUnread] = useState<Record<string, number>>({});
+  const [unread, setUnread] = useState<{ privateByUser: Record<string, number>; groupByProject: Record<string, number> }>({ privateByUser: {}, groupByProject: {} });
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // A supervisor's messageable contacts are the students on their own
@@ -30,11 +34,11 @@ export function MessagesPage() {
     projectApi.assigned().then((res) => setProjects(res.data.data));
   }, []);
 
-  const loadUnread = () => messageApi.unreadSummary().then((res) => setUnread(res.data.data.privateByUser)).catch(() => {});
+  const loadUnread = () => messageApi.unreadSummary().then((res) => setUnread(res.data.data)).catch(() => {});
   useEffect(() => { loadUnread(); }, []);
 
   const openConversation = async (contact: Contact) => {
-    setActiveContact(contact);
+    setActiveConversation({ kind: "private", contact });
     const res = await messageApi.privateThread(contact._id);
     setThread(res.data.data);
     await Promise.all(res.data.data.filter((message) => {
@@ -44,16 +48,33 @@ export function MessagesPage() {
     loadUnread();
   };
 
+  const openGroupConversation = async (project: Project) => {
+    setActiveConversation({ kind: "group", project });
+    const res = await messageApi.projectThread(project._id);
+    setThread(res.data.data);
+    await Promise.all(res.data.data
+      .filter((message) => {
+        const senderId = typeof message.sender === "string" ? message.sender : message.sender._id;
+        return senderId !== user?._id;
+      })
+      .map((message) => messageApi.markRead(message._id)));
+    loadUnread();
+  };
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread]);
 
   const handleSend = async (e: FormEvent) => {
     e.preventDefault();
-    if (!activeContact || !draft.trim()) return;
+    if (!activeConversation || !draft.trim()) return;
     setSending(true);
     try {
-      const res = await messageApi.send({ chatType: "Private", recipient: activeContact._id, content: draft });
+      const res = await messageApi.send(
+        activeConversation.kind === "group"
+          ? { chatType: "Project Group", project: activeConversation.project._id, content: draft }
+          : { chatType: "Private", recipient: activeConversation.contact._id, content: draft }
+      );
       setThread((prev) => [...prev, res.data.data]);
       setDraft("");
     } finally {
@@ -63,7 +84,7 @@ export function MessagesPage() {
 
   return (
     <div>
-      <PageHeader title="Messages" description="Direct messages with your students" />
+      <PageHeader title="Messages" description="Private messages and group conversations for your assigned projects" />
 
       <div className="card grid h-[70vh] grid-cols-1 overflow-hidden md:grid-cols-3">
         <div className="overflow-y-auto border-r border-gray-100 p-3">
@@ -71,6 +92,16 @@ export function MessagesPage() {
           {projects.map((p) => (
             <div key={p._id} className="mb-3">
               <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{p.title}</p>
+              <button
+                onClick={() => openGroupConversation(p)}
+                className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-gray-50 ${
+                  activeConversation?.kind === "group" && activeConversation.project._id === p._id ? "bg-brand-50" : ""
+                }`}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">G</span>
+                <span className="flex-1 font-medium">Group chat</span>
+                {unread.groupByProject[p._id] > 0 && <UnreadDot />}
+              </button>
               {p.students.length === 0 ? (
                 <p className="px-2 text-xs text-gray-400">No students yet</p>
               ) : (
@@ -79,14 +110,14 @@ export function MessagesPage() {
                     key={s._id}
                     onClick={() => openConversation({ _id: s._id, name: s.name, matric: s.matric })}
                     className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-gray-50 ${
-                      activeContact?._id === s._id ? "bg-brand-50" : ""
+                      activeConversation?.kind === "private" && activeConversation.contact._id === s._id ? "bg-brand-50" : ""
                     }`}
                   >
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
                       {s.name[0]?.toUpperCase()}
                     </span>
                     <span className="flex-1">{s.name}</span>
-                    {unread[s._id] > 0 && <UnreadDot />}
+                    {unread.privateByUser[s._id] > 0 && <UnreadDot />}
                   </button>
                 ))
               )}
@@ -95,15 +126,17 @@ export function MessagesPage() {
         </div>
 
         <div className="col-span-2 flex flex-col">
-          {!activeContact ? (
+          {!activeConversation ? (
             <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
               Select a student to start messaging
             </div>
           ) : (
             <>
               <div className="border-b border-gray-100 px-4 py-3">
-                <p className="text-sm font-semibold text-gray-900">{activeContact.name}</p>
-                {activeContact.matric && <p className="text-xs text-gray-400">{activeContact.matric}</p>}
+                <p className="text-sm font-semibold text-gray-900">
+                  {activeConversation.kind === "group" ? `${activeConversation.project.title} group chat` : activeConversation.contact.name}
+                </p>
+                {activeConversation.kind === "private" && activeConversation.contact.matric && <p className="text-xs text-gray-400">{activeConversation.contact.matric}</p>}
               </div>
               <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
                 {thread.map((m) => {
@@ -120,7 +153,7 @@ export function MessagesPage() {
                 <div ref={bottomRef} />
               </div>
               <form onSubmit={handleSend} className="flex gap-2 border-t border-gray-100 p-3">
-                <input className="input" placeholder="Type a message…" value={draft} onChange={(e) => setDraft(e.target.value)} />
+                <input className="input" placeholder={activeConversation.kind === "group" ? "Message the project group…" : "Type a message…"} value={draft} onChange={(e) => setDraft(e.target.value)} />
                 <Button type="submit" loading={sending} disabled={!draft.trim()}>
                   Send
                 </Button>

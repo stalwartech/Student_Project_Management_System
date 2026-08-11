@@ -5,8 +5,16 @@ const Attachment = require("../models/Attachment");
 const asyncHandler = require("../utils/asyncHandler");
 const { ApiError, sendSuccess } = require("../utils/apiError");
 const { uploadToCloudinary, destroyFromCloudinary } = require("../Config/cloudinary");
+const { syncProjectProgress } = require("../utils/syncProjectProgress");
 
 const sameId = (left, right) => String(left) === String(right);
+const startChapterIfNeeded = async (chapter) => {
+  if (chapter.status !== "Not Started") return;
+  chapter.status = "In Progress";
+  chapter.startDate = new Date();
+  await chapter.save();
+};
+
 const assertTaskAccess = async (user, task) => {
   const chapter = await Chapter.findById(task.chapter);
   if (!chapter) throw new ApiError(404, "Chapter not found");
@@ -32,6 +40,8 @@ const createTask = asyncHandler(async (req, res) => {
   if (chapterDoc.isLocked || project.isLocked) throw new ApiError(403, "This chapter is locked");
 
   const task = await Task.create({ title, chapter, description, deadline, taskNumber, createdBy: req.user._id });
+  await startChapterIfNeeded(chapterDoc);
+  await syncProjectProgress(project._id);
   return sendSuccess(res, 201, "Task created", task);
 });
 
@@ -91,6 +101,8 @@ const completeTask = asyncHandler(async (req, res) => {
   task.status = "Completed";
   task.completionDate = new Date();
   await task.save();
+  await startChapterIfNeeded(chapter);
+  await syncProjectProgress(project._id);
   return sendSuccess(res, 200, "Task marked complete", task);
 });
 
@@ -104,6 +116,8 @@ const updateTaskStatus = asyncHandler(async (req, res) => {
   if (!isStudent || task.isLocked || chapter.isLocked || project.isLocked) throw new ApiError(403, "This task is locked or does not belong to you");
   task.status = status;
   await task.save();
+  if (status !== "Not Started") await startChapterIfNeeded(chapter);
+  await syncProjectProgress(project._id);
   return sendSuccess(res, 200, "Task status updated", task);
 });
 

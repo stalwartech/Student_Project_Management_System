@@ -6,6 +6,7 @@ const asyncHandler = require("../utils/asyncHandler");
 const { ApiError, sendSuccess } = require("../utils/apiError");
 const generateProjectCode = require("../utils/generateProjectCode");
 const logActivity = require("../utils/logActivity");
+const { syncStartedProjects } = require("../utils/syncProjectProgress");
 
 // POST /coordinator/projects
 const createProject = asyncHandler(async (req, res) => {
@@ -31,6 +32,7 @@ const createProject = asyncHandler(async (req, res) => {
     startDate,
     department,
     projectCode,
+    status: new Date(startDate) <= new Date() ? "In Progress" : "Not Started",
     createdBy: req.user._id,
     // supervisor is required by the schema but assigned via the dedicated
     // assignment endpoint in the real flow - if not supplied yet, the
@@ -94,6 +96,7 @@ const createSupervisorProject = asyncHandler(async (req, res) => {
     startDate,
     department,
     projectCode: await generateProjectCode(),
+    status: new Date(startDate) <= new Date() ? "In Progress" : "Not Started",
     supervisor: req.user._id,
     students: studentIds,
     projectLeader: projectType === "Group" ? projectLeader : studentIds[0],
@@ -158,8 +161,31 @@ const updateSupervisorProjectType = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, "Project type updated", project);
 });
 
+// PATCH /supervisor/projects/:projectID/start
+// A supervisor may explicitly begin one of their assigned projects before the
+// planned start date. This makes the status change visible immediately.
+const startSupervisorProject = asyncHandler(async (req, res) => {
+  const project = await Project.findOne({ _id: req.params.projectID, supervisor: req.user._id });
+  if (!project) throw new ApiError(404, "Assigned project not found");
+  if (project.status === "Archived") throw new ApiError(409, "Archived projects cannot be started");
+  if (project.status === "Completed") throw new ApiError(409, "Completed projects cannot be started");
+
+  project.status = "In Progress";
+  await project.save();
+  await logActivity({
+    actor: req.user._id,
+    action: "project_started",
+    entityType: "project",
+    entityId: project._id,
+    project: project._id,
+  });
+
+  return sendSuccess(res, 200, "Project started", project);
+});
+
 // GET /coordinator/projects  (also backs /projects, /projects/search, /project/filter)
 const getProjects = asyncHandler(async (req, res) => {
+  await syncStartedProjects();
   const { search, status, department, academicSession, supervisor, projectType, page = 1, limit = 20 } = req.query;
 
   const query = {};
@@ -215,6 +241,7 @@ const deleteProject = asyncHandler(async (req, res) => {
 
 // GET /projects/my-project  (student)
 const getMyProject = asyncHandler(async (req, res) => {
+  await syncStartedProjects();
   const project = await Project.findOne({ students: req.user._id })
     .populate("supervisor", "name email title")
     .populate("students", "name matric");
@@ -224,6 +251,7 @@ const getMyProject = asyncHandler(async (req, res) => {
 
 // GET /projects/assigned  (supervisor)
 const getAssignedProjects = asyncHandler(async (req, res) => {
+  await syncStartedProjects();
   const projects = await Project.find({ supervisor: req.user._id }).populate("students", "name matric");
   return sendSuccess(res, 200, "Assigned projects", projects);
 });
@@ -293,6 +321,7 @@ const getMySupervisorAssignment = asyncHandler(async (req, res) => {
 
 // GET /projects/:projectId
 const getProjectById = asyncHandler(async (req, res) => {
+  await syncStartedProjects();
   const project = await Project.findById(req.params.projectId)
     .populate("supervisor", "name email title")
     .populate("students", "name matric email")
@@ -358,6 +387,7 @@ module.exports = {
   createSupervisorProject,
   getSupervisorAvailableStudents,
   updateSupervisorProjectType,
+  startSupervisorProject,
   getProjects,
   updateProject,
   deleteProject,
