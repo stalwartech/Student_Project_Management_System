@@ -52,7 +52,7 @@ export function Topbar() {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6">
+    <header className="flex h-16 items-center justify-between border-b  bg-gray-50 px-6">
       <div />
       <div className="flex items-center gap-4" ref={panelRef}>
         <div className="relative">
@@ -105,7 +105,7 @@ export function Topbar() {
         <div className="relative">
           <button
             onClick={() => setShowUserMenu((v) => !v)}
-            className="flex items-center gap-2 rounded-full border border-gray-200 px-2 py-1 hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-full border border-gray-200 px-2 py-1 hover:bg-gray-50 bg-white"
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
               {user?.name?.[0]?.toUpperCase() ?? "C"}

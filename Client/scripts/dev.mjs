@@ -65,6 +65,7 @@ for (const application of applications) {
   const child = spawn(npmCommand, application.command, {
     cwd: directory,
     stdio: 'inherit',
+    shell: true,
     env: { ...process.env, ...application.env },
   })
   children.push(child)
