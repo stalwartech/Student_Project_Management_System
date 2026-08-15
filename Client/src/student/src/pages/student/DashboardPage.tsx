@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { projectApi } from "@/api/projects";
 import { chapterApi } from "@/api/chapters";
+import { submissionApi } from "@/api/submissions";
 import { meetingApi } from "@/api/meetings";
-import type { Project, Chapter, Meeting } from "@/types";
+import type { Project, Chapter, ChapterSubmission, Meeting } from "@/types";
 import { PageHeader, Spinner } from "@/components/ui/misc";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge, statusColor } from "@/components/ui/Badge";
@@ -11,6 +12,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate, formatDateTime } from "@/utils/format";
 
 type Health = "On Track" | "Slightly Behind" | "At Risk";
+type SubmittedDocument = ChapterSubmission & { chapterTitle: string };
 
 // No backend field exists for project health yet (flagged in SCREENS.md) -
 // this is a simple client-side heuristic based on deadline proximity vs.
@@ -35,6 +37,7 @@ export function StudentDashboardPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [submittedDocuments, setSubmittedDocuments] = useState<SubmittedDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [noProject, setNoProject] = useState(false);
 
@@ -47,8 +50,19 @@ export function StudentDashboardPage() {
           chapterApi.list(projectRes.data.data._id),
           meetingApi.list(),
         ]);
-        setChapters(chaptersRes.data.data);
+        const loadedChapters = chaptersRes.data.data;
+        setChapters(loadedChapters);
         setMeetings(meetingsRes.data.data);
+        const submissionResponses = await Promise.all(
+          loadedChapters.map((chapter) => submissionApi.listByChapter(chapter._id))
+        );
+        setSubmittedDocuments(
+          submissionResponses
+            .flatMap((response, index) =>
+              response.data.data.map((submission) => ({ ...submission, chapterTitle: loadedChapters[index].title }))
+            )
+            .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+        );
       } catch {
         setNoProject(true);
       } finally {
@@ -96,6 +110,25 @@ export function StudentDashboardPage() {
         <StatCard label="Current chapter" value={currentChapter?.title ?? "—"} />
         <StatCard label="Upcoming meetings" value={upcomingMeetings.length} />
       </div>
+
+      {submittedDocuments.length > 0 && (
+        <div className="mt-6 card p-5">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Uploaded documents</h2>
+          <ul className="divide-y divide-gray-100">
+            {submittedDocuments.map((submission) => (
+              <li key={submission._id} className="flex items-center justify-between py-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{submission.chapterTitle} · Version {submission.version}</p>
+                  <p className="text-xs text-gray-400">Submitted {formatDateTime(submission.submittedAt)}</p>
+                </div>
+                <a href={submission.PDFFile} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand-700 hover:underline">
+                  Open PDF
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <div className="card p-5">

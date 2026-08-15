@@ -4,17 +4,21 @@ import { projectApi } from "@/api/projects";
 import { meetingApi } from "@/api/meetings";
 import { feedbackApi } from "@/api/feedback";
 import { chapterApi } from "@/api/chapters";
-import type { Project, Meeting, Feedback, Chapter } from "@/types";
+import { submissionApi } from "@/api/submissions";
+import type { Project, Meeting, Feedback, Chapter, ChapterSubmission } from "@/types";
 import { PageHeader, Spinner } from "@/components/ui/misc";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge, statusColor } from "@/components/ui/Badge";
 import { formatDateTime } from "@/utils/format";
+
+type SubmittedDocument = ChapterSubmission & { chapterTitle: string };
 
 export function SupervisorDashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [chaptersByProject, setChaptersByProject] = useState<Record<string, Chapter[]>>({});
+  const [submittedDocuments, setSubmittedDocuments] = useState<SubmittedDocument[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +36,19 @@ export function SupervisorDashboardPage() {
         return [project._id, response.data.data] as const;
       }));
       setChaptersByProject(Object.fromEntries(chapters));
+      const submissionResponses = await Promise.all(
+        chapters.flatMap(([, projectChapters]) =>
+          projectChapters.map(async (chapter) => {
+            const response = await submissionApi.listByChapter(chapter._id);
+            return response.data.data.map((submission) => ({ ...submission, chapterTitle: chapter.title }));
+          })
+        )
+      );
+      setSubmittedDocuments(
+        submissionResponses
+          .flat()
+          .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+      );
       setLoading(false);
     })();
   }, []);
@@ -59,6 +76,27 @@ export function SupervisorDashboardPage() {
         <StatCard label="Open Feedback" value={feedback.length} />
         <StatCard label="Upcoming Meetings" value={upcomingMeetings.length} />
       </div>
+
+      {submittedDocuments.length > 0 && (
+        <div className="mt-6 card p-5">
+          <h2 className="mb-3 text-sm font-semibold text-gray-900">Submitted documents</h2>
+          <ul className="divide-y divide-gray-100">
+            {submittedDocuments.map((submission) => (
+              <li key={submission._id} className="flex items-center justify-between py-3">
+                <div>
+                  <Link to={`/supervisor/chapters/`} className="text-sm font-medium text-brand-700 hover:underline">
+                    {submission.chapterTitle} · Version {submission.version}
+                  </Link>
+                  <p className="text-xs text-gray-400">Submitted {formatDateTime(submission.submittedAt)}</p>
+                </div>
+                <a href={submission.PDFFile} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand-700 hover:underline">
+                  Open PDF
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <div className="card p-5">
