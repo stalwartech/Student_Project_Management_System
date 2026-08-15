@@ -16,13 +16,6 @@ export function ChapterSubmissionPage() {
   const { chapterId } = useParams<{ chapterId: string }>();
   const { show } = useToast();
 
-  // KNOWN BACKEND GAP (same one flagged in the supervisor build): there's no
-  // GET /chapters/:id/latest-submission, so on first load of an
-  // already-submitted chapter this page has no submission id to fetch
-  // history from. It works correctly once the student has interacted with
-  // it in this session (create/addVersion both return the new submission,
-  // which is used to load history going forward) but a page refresh loses
-  // that link until a backend lookup-by-chapter endpoint exists.
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [latestSubmission, setLatestSubmission] = useState<ChapterSubmission | null>(null);
   const [history, setHistory] = useState<ChapterSubmission[]>([]);
@@ -34,9 +27,24 @@ export function ChapterSubmissionPage() {
   const load = async () => {
     if (!chapterId) return;
     setLoading(true);
-    const chapterRes = await chapterApi.get(chapterId);
-    setChapter(chapterRes.data.data);
-    setLoading(false);
+    try {
+      const [chapterRes, submissionsRes] = await Promise.all([chapterApi.get(chapterId), submissionApi.listByChapter(chapterId)]);
+      setChapter(chapterRes.data.data);
+      const submissions = [...submissionsRes.data.data].sort((a, b) => b.version - a.version);
+      setHistory(submissions);
+      setLatestSubmission(submissions[0] ?? null);
+
+      if (submissions[0]?.status === "revision_requested") {
+        const feedbackRes = await feedbackApi.bySubmission(submissions[0]._id);
+        setLatestFeedback(feedbackRes.data.data[feedbackRes.data.data.length - 1] ?? null);
+      } else {
+        setLatestFeedback(null);
+      }
+    } catch (err) {
+      show(getErrorMessage(err), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -89,6 +97,23 @@ export function ChapterSubmissionPage() {
       </Link>
       <PageHeader title={`Submit: ${chapter.title}`} />
 
+      {latestSubmission && (
+        <div className="card mb-4 flex items-center justify-between p-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Your latest uploaded document</p>
+            <p className="mt-1 text-xs text-gray-500">Version {latestSubmission.version} · Submitted {formatDateTime(latestSubmission.submittedAt)}</p>
+          </div>
+          <a
+            href={latestSubmission.PDFFile}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Open PDF
+          </a>
+        </div>
+      )}
+
       {chapter.isLocked ? (
         <div className="card border-red-200 bg-red-50 p-4">
           <p className="text-sm text-red-800">
@@ -121,7 +146,15 @@ export function ChapterSubmissionPage() {
               <ul className="space-y-2">
                 {history.map((v) => (
                   <li key={v._id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                    <span>v{v.version}</span>
+                    <a
+                      href={v.PDFFile}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-brand-700 hover:underline"
+                      title="Open uploaded PDF"
+                    >
+                      v{v.version}
+                    </a>
                     <div className="flex items-center gap-2">
                       <Badge color={statusColor(v.status)}>{v.status.replace("_", " ")}</Badge>
                     </div>

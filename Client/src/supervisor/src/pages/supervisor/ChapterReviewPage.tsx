@@ -169,7 +169,16 @@ export function ChapterReviewPage() {
             <div className="card overflow-hidden">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-medium text-gray-900">Version {activeSubmission.version}</p>
-                <div className="flex gap-1">
+                <div className="flex items-center gap-3">
+                  <a
+                    href={activeSubmission.PDFFile}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-medium text-brand-700 hover:underline"
+                  >
+                    Open PDF
+                  </a>
+                  <div className="flex gap-1">
                   {versions.map((v) => (
                     <button
                       key={v._id}
@@ -181,6 +190,7 @@ export function ChapterReviewPage() {
                       v{v.version}
                     </button>
                   ))}
+                  </div>
                 </div>
               </div>
               {pdfUrl ? (

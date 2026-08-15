@@ -9,9 +9,7 @@ const logActivity = require("../utils/logActivity");
 const { uploadToCloudinary } = require("../Config/cloudinary");
 
 const sameId = (left, right) => String(left) === String(right);
-const assertSubmissionAccess = async (user, submission) => {
-  const chapter = await Chapter.findById(submission.chapter);
-  if (!chapter) throw new ApiError(404, "Chapter not found");
+const assertChapterSubmissionAccess = async (user, chapter) => {
   const project = await Project.findById(chapter.project);
   if (!project) throw new ApiError(404, "Project not found");
   const isStudent = project.students.some((student) => sameId(student, user._id));
@@ -19,6 +17,13 @@ const assertSubmissionAccess = async (user, submission) => {
   if (user.role !== "coordinator" && !isStudent && !isSupervisor) {
     throw new ApiError(403, "You do not have access to this submission");
   }
+  return { project, isStudent, isSupervisor };
+};
+
+const assertSubmissionAccess = async (user, submission) => {
+  const chapter = await Chapter.findById(submission.chapter);
+  if (!chapter) throw new ApiError(404, "Chapter not found");
+  return assertChapterSubmissionAccess(user, chapter);
 };
 
 // POST /chapter-submissions  (multipart: pdf field "file", body: chapter)
@@ -29,6 +34,9 @@ const createSubmission = asyncHandler(async (req, res) => {
 
   const chapter = await Chapter.findById(chapterId);
   if (!chapter) throw new ApiError(404, "Chapter not found");
+  const { project, isStudent } = await assertChapterSubmissionAccess(req.user, chapter);
+  if (!isStudent) throw new ApiError(403, "You can only submit chapters for your assigned project");
+  if (project.isLocked) throw new ApiError(403, "This project is locked for submissions");
   if (chapter.isLocked) throw new ApiError(403, "This chapter is locked for submissions");
   const uploaded = await uploadToCloudinary(req.file, "submissions");
 
@@ -45,7 +53,6 @@ const createSubmission = asyncHandler(async (req, res) => {
   chapter.status = "Submitted";
   await chapter.save();
 
-  const project = await Project.findById(chapter.project);
   if (project?.supervisor) {
     await notify({
       recipient: project.supervisor,
@@ -71,6 +78,13 @@ const addVersion = asyncHandler(async (req, res) => {
   const previous = await ChapterSubmission.findById(req.params.submissionId);
   if (!previous) throw new ApiError(404, "Submission not found");
   if (!req.file) throw new ApiError(400, "PDF file is required");
+  const chapter = await Chapter.findById(previous.chapter);
+  if (!chapter) throw new ApiError(404, "Chapter not found");
+  const { project, isStudent } = await assertChapterSubmissionAccess(req.user, chapter);
+  if (!isStudent || !sameId(previous.submittedBy, req.user._id)) {
+    throw new ApiError(403, "You can only submit a new version of your own chapter submission");
+  }
+  if (project.isLocked || chapter.isLocked) throw new ApiError(403, "This chapter is locked for submissions");
   const uploaded = await uploadToCloudinary(req.file, "submissions");
 
   const latestVersion = await ChapterSubmission.findOne({ chapter: previous.chapter })
@@ -93,6 +107,15 @@ const addVersion = asyncHandler(async (req, res) => {
     entityType: "chapter_submission",
     entityId: submission._id,
   });
+
+  if (project.supervisor) {
+    await notify({
+      recipient: project.supervisor,
+      sender: req.user._id,
+      title: "Chapter resubmitted",
+      message: `${req.user.name} submitted version ${submission.version} of "${chapter.title}" for review.`,
+    });
+  }
 
   return sendSuccess(res, 201, "New version submitted", submission);
 });
@@ -139,6 +162,9 @@ const downloadSubmission = asyncHandler(async (req, res) => {
 const reviewSubmission = async ({ submissionId, reviewer, status, comment }) => {
   const submission = await ChapterSubmission.findById(submissionId);
   if (!submission) throw new ApiError(404, "Submission not found");
+
+  const { isSupervisor } = await assertSubmissionAccess(reviewer, submission);
+  if (!isSupervisor) throw new ApiError(403, "Only the assigned supervisor can review this submission");
 
   submission.status = status;
   submission.reviewedBy = reviewer._id;

@@ -2,6 +2,9 @@ import { api, API_BASE_URL } from "./client";
 import type { ApiEnvelope, ChapterSubmission } from "@/types";
 
 export const submissionApi = {
+  listByChapter: (chapterId: string) =>
+    api.get<ApiEnvelope<ChapterSubmission[]>>("/chapter-submissions", { params: { chapter: chapterId } }),
+
   create: (chapterId: string, file: File) => {
     const form = new FormData();
     form.append("chapter", chapterId);
