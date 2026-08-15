@@ -131,10 +131,10 @@ export function ChapterReviewPage() {
 
   const previewUrl = pdfUrl ? pdfUrl + "#zoom=" + pdfZoom : "";
 
-  const openPrintView = () => {
-    if (!pdfUrl) return;
-    window.open(pdfUrl, "_blank", "noopener,noreferrer");
-  };
+  // const openPrintView = () => {
+  //   if (!pdfUrl) return;
+  //   window.open(pdfUrl, "_blank", "noopener,noreferrer");
+  // };
 
   if (loading || !chapter) {
     return (
@@ -209,34 +209,8 @@ export function ChapterReviewPage() {
               {pdfUrl ? (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-2">
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <span className="font-medium">Preview controls</span>
-                    <button
-                      type="button"
-                      onClick={() => setPdfZoom((zoom) => Math.max(50, zoom - 25))}
-                      disabled={pdfZoom <= 50}
-                      className="rounded border border-gray-300 bg-white px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      −
-                    </button>
-                    <span className="min-w-11 text-center">{pdfZoom}%</span>
-                    <button
-                      type="button"
-                      onClick={() => setPdfZoom((zoom) => Math.min(200, zoom + 25))}
-                      disabled={pdfZoom >= 200}
-                      className="rounded border border-gray-300 bg-white px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <a href={pdfUrl} download className="text-xs font-medium text-brand-700 hover:underline">
-                      Download
-                    </a>
-                    <button type="button" onClick={openPrintView} className="text-xs font-medium text-brand-700 hover:underline">
-                      Print
-                    </button>
-                  </div>
+            
+             
                 </div>
                 <iframe key={previewUrl} src={previewUrl} title={`Version ${activeSubmission.version} PDF`} className="h-[70vh] w-full" />
                 </>
