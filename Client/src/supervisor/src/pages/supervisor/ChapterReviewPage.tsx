@@ -23,6 +23,7 @@ export function ChapterReviewPage() {
   const [versions, setVersions] = useState<ChapterSubmission[]>([]);
   const [activeSubmission, setActiveSubmission] = useState<ChapterSubmission | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string>("");
+  const [pdfZoom, setPdfZoom] = useState(100);
   const [feedbackThread, setFeedbackThread] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [lockToggling, setLockToggling] = useState(false);
@@ -41,7 +42,7 @@ export function ChapterReviewPage() {
       setChapter(chapterRes.data.data);
       const submissions = submissionsRes.data.data;
       setVersions(submissions);
-      if (submissions.length) await selectVersion(submissions[0]);
+      if (submissions.length) selectVersion(submissions[0]);
     } catch (err) {
       show(getErrorMessage(err), "error");
     } finally {
@@ -61,12 +62,17 @@ export function ChapterReviewPage() {
     selectVersion(sorted[0]);
   };
 
-  const selectVersion = async (submission: ChapterSubmission) => {
+  const selectVersion = (submission: ChapterSubmission) => {
+    // Set the PDF first so it is visible immediately. Feedback is loaded
+    // independently and must never delay the document preview.
     setActiveSubmission(submission);
-    // PDFFile is the secure Cloudinary URL returned by the upload API.
     setPdfUrl(submission.PDFFile);
-    const feedbackRes = await feedbackApi.bySubmission(submission._id);
-    setFeedbackThread(feedbackRes.data.data);
+    setPdfZoom(100);
+    setFeedbackThread([]);
+    void feedbackApi
+      .bySubmission(submission._id)
+      .then((response) => setFeedbackThread(response.data.data))
+      .catch(() => setFeedbackThread([]));
   };
 
   const toggleLock = async () => {
@@ -121,6 +127,13 @@ export function ChapterReviewPage() {
     } finally {
       setSubmittingReview(false);
     }
+  };
+
+  const previewUrl = pdfUrl ? pdfUrl + "#zoom=" + pdfZoom : "";
+
+  const openPrintView = () => {
+    if (!pdfUrl) return;
+    window.open(pdfUrl, "_blank", "noopener,noreferrer");
   };
 
   if (loading || !chapter) {
@@ -194,7 +207,39 @@ export function ChapterReviewPage() {
                 </div>
               </div>
               {pdfUrl ? (
-                <iframe src={pdfUrl} title="Chapter submission PDF" className="h-[70vh] w-full" />
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-2">
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <span className="font-medium">Preview controls</span>
+                    <button
+                      type="button"
+                      onClick={() => setPdfZoom((zoom) => Math.max(50, zoom - 25))}
+                      disabled={pdfZoom <= 50}
+                      className="rounded border border-gray-300 bg-white px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      −
+                    </button>
+                    <span className="min-w-11 text-center">{pdfZoom}%</span>
+                    <button
+                      type="button"
+                      onClick={() => setPdfZoom((zoom) => Math.min(200, zoom + 25))}
+                      disabled={pdfZoom >= 200}
+                      className="rounded border border-gray-300 bg-white px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <a href={pdfUrl} download className="text-xs font-medium text-brand-700 hover:underline">
+                      Download
+                    </a>
+                    <button type="button" onClick={openPrintView} className="text-xs font-medium text-brand-700 hover:underline">
+                      Print
+                    </button>
+                  </div>
+                </div>
+                <iframe key={previewUrl} src={previewUrl} title={`Version ${activeSubmission.version} PDF`} className="h-[70vh] w-full" />
+                </>
               ) : (
                 <div className="flex h-[70vh] items-center justify-center">
                   <Spinner />
