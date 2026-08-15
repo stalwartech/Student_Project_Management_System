@@ -42,6 +42,7 @@ export function statusColor(status: string): BadgeColor {
     reopened: "red",
     scheduled: "blue",
     ongoing: "amber",
+    ended: "gray",
     cancelled: "red",
   };
   return map[status] ?? "gray";

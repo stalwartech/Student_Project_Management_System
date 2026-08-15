@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDateTime } from "@/utils/format";
 
+const statusLabel = (status: Meeting["status"]) => status.charAt(0).toUpperCase() + status.slice(1);
+
 export function MeetingsPage() {
   const { show } = useToast();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -24,6 +26,8 @@ export function MeetingsPage() {
 
   useEffect(() => {
     load();
+    const refreshTimer = window.setInterval(load, 30_000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const handleJoin = async (id: string) => {
@@ -49,7 +53,7 @@ export function MeetingsPage() {
   };
 
   const upcoming = meetings.filter((m) => m.status === "scheduled" || m.status === "ongoing");
-  const past = meetings.filter((m) => m.status === "completed" || m.status === "cancelled");
+  const past = meetings.filter((m) => m.status === "ended" || m.status === "completed" || m.status === "cancelled");
 
   return (
     <div>
@@ -71,13 +75,19 @@ export function MeetingsPage() {
                   <div key={m._id} className="flex items-center justify-between px-4 py-3">
                     <div>
                       <p className="text-sm font-medium text-gray-900">{m.title}</p>
-                      <p className="text-xs text-gray-400">{formatDateTime(m.startedAt)}</p>
+                      <p className="text-xs text-gray-400">
+                        {formatDateTime(m.startedAt)} – {formatDateTime(m.endedAt)}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge color={statusColor(m.status)}>{m.status}</Badge>
-                      <Button onClick={() => handleJoin(m._id)} loading={joining === m._id}>
-                        Join
-                      </Button>
+                      <Badge color={statusColor(m.status)}>{statusLabel(m.status)}</Badge>
+                      {m.status === "ongoing" ? (
+                        <Button onClick={() => handleJoin(m._id)} loading={joining === m._id}>
+                          Join
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-gray-400">Starts at scheduled time</span>
+                      )}
                     </div>
                   </div>
                 ))
@@ -95,9 +105,11 @@ export function MeetingsPage() {
                   <div key={m._id} className="flex items-center justify-between px-4 py-3">
                     <div>
                       <p className="text-sm font-medium text-gray-900">{m.title}</p>
-                      <p className="text-xs text-gray-400">{formatDateTime(m.startedAt)}</p>
+                      <p className="text-xs text-gray-400">
+                        {formatDateTime(m.startedAt)} – {formatDateTime(m.endedAt)}
+                      </p>
                     </div>
-                    <Badge color={statusColor(m.status)}>{m.status}</Badge>
+                    <Badge color={statusColor(m.status)}>{statusLabel(m.status)}</Badge>
                   </div>
                 ))
               )}

@@ -16,10 +16,41 @@ const normalizeMeetingUrl = (value) => {
   }
 };
 
-// POST /meetings  { project, title, description, meetingURL, startedAt }
+const parseMeetingTimes = (startedAt, endedAt) => {
+  const start = new Date(startedAt);
+  const end = new Date(endedAt);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new ApiError(400, "A valid start date/time and end date/time are required");
+  }
+  if (end <= start) {
+    throw new ApiError(400, "The end date/time must be after the start date/time");
+  }
+
+  return { startedAt: start, endedAt: end };
+};
+
+const getMeetingStatus = (meeting, now = new Date()) => {
+  if (meeting.status === "cancelled") return "cancelled";
+  if (meeting.status === "completed") return "ended";
+  if (!meeting.startedAt || !meeting.endedAt) return meeting.status;
+  if (now < meeting.startedAt) return "scheduled";
+  if (now >= meeting.endedAt) return "ended";
+  return "ongoing";
+};
+
+const withCurrentStatus = (meeting) => ({
+  ...meeting.toObject(),
+  status: getMeetingStatus(meeting),
+});
+
+// POST /meetings  { project, title, description, meetingURL, startedAt, endedAt }
 const createMeeting = asyncHandler(async (req, res) => {
-  const { project, title, description, meetingURL, startedAt } = req.body;
-  if (!project || !title || !meetingURL) throw new ApiError(400, "project, title and meetingURL are required");
+  const { project, title, description, meetingURL, startedAt, endedAt } = req.body;
+  if (!project || !title || !meetingURL || !startedAt || !endedAt) {
+    throw new ApiError(400, "project, title, meetingURL, start date/time and end date/time are required");
+  }
+  const meetingTimes = parseMeetingTimes(startedAt, endedAt);
 
   const proj = await Project.findById(project).select("students supervisor title");
   if (!proj) throw new ApiError(404, "Project not found");
@@ -32,7 +63,8 @@ const createMeeting = asyncHandler(async (req, res) => {
     title,
     description,
     meetingURL: normalizeMeetingUrl(meetingURL.trim()),
-    startedAt,
+    ...meetingTimes,
+    duration: Math.round((meetingTimes.endedAt - meetingTimes.startedAt) / 60000),
     attendees: attendeeIds.map((user) => ({ user, status: "invited" })),
   });
 
@@ -51,7 +83,7 @@ const createMeeting = asyncHandler(async (req, res) => {
     project,
   });
 
-  return sendSuccess(res, 201, "Meeting scheduled", meeting);
+  return sendSuccess(res, 201, "Meeting scheduled", withCurrentStatus(meeting));
 });
 
 // GET /meetings?project=
@@ -64,23 +96,34 @@ const getMeetings = asyncHandler(async (req, res) => {
   }
 
   const meetings = await Meeting.find(query).sort({ startedAt: -1 });
-  return sendSuccess(res, 200, "Meetings", meetings);
+  return sendSuccess(res, 200, "Meetings", meetings.map(withCurrentStatus));
 });
 
 // GET /meetings/:meetingId
 const getMeetingById = asyncHandler(async (req, res) => {
   const meeting = await Meeting.findById(req.params.meetingId).populate("attendees.user", "name role");
   if (!meeting) throw new ApiError(404, "Meeting not found");
-  return sendSuccess(res, 200, "Meeting", meeting);
+  return sendSuccess(res, 200, "Meeting", withCurrentStatus(meeting));
 });
 
 // PATCH /meetings/:meetingId
 const updateMeeting = asyncHandler(async (req, res) => {
-  const meeting = await Meeting.findByIdAndUpdate(req.params.meetingId, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const meeting = await Meeting.findById(req.params.meetingId);
   if (!meeting) throw new ApiError(404, "Meeting not found");
+
+  if (meeting.status === "cancelled") throw new ApiError(400, "Cancelled meetings cannot be rescheduled");
+
+  const { title, description, meetingURL, startedAt, endedAt } = req.body;
+  if (title !== undefined) meeting.title = title;
+  if (description !== undefined) meeting.description = description;
+  if (meetingURL !== undefined) meeting.meetingURL = normalizeMeetingUrl(meetingURL.trim());
+  if (startedAt !== undefined || endedAt !== undefined) {
+    const meetingTimes = parseMeetingTimes(startedAt ?? meeting.startedAt, endedAt ?? meeting.endedAt);
+    meeting.startedAt = meetingTimes.startedAt;
+    meeting.endedAt = meetingTimes.endedAt;
+    meeting.duration = Math.round((meetingTimes.endedAt - meetingTimes.startedAt) / 60000);
+  }
+  await meeting.save();
 
   await notifyMany({
     sender: req.user._id,
@@ -89,7 +132,7 @@ const updateMeeting = asyncHandler(async (req, res) => {
     message: `"${meeting.title}" has been updated.`,
   });
 
-  return sendSuccess(res, 200, "Meeting updated", meeting);
+  return sendSuccess(res, 200, "Meeting updated", withCurrentStatus(meeting));
 });
 
 // PATCH /meetings/:meetingId/cancel
@@ -104,20 +147,7 @@ const cancelMeeting = asyncHandler(async (req, res) => {
     message: `"${meeting.title}" has been cancelled.`,
   });
 
-  return sendSuccess(res, 200, "Meeting cancelled", meeting);
-});
-
-// PATCH /meetings/:meetingId/complete
-const completeMeeting = asyncHandler(async (req, res) => {
-  const meeting = await Meeting.findById(req.params.meetingId);
-  if (!meeting) throw new ApiError(404, "Meeting not found");
-
-  meeting.status = "completed";
-  meeting.endedAt = new Date();
-  if (meeting.startedAt) meeting.duration = Math.round((meeting.endedAt - meeting.startedAt) / 60000);
-  await meeting.save();
-
-  return sendSuccess(res, 200, "Meeting marked complete", meeting);
+  return sendSuccess(res, 200, "Meeting cancelled", withCurrentStatus(meeting));
 });
 
 // POST /meetings/:meetingId/join
@@ -125,17 +155,17 @@ const joinMeeting = asyncHandler(async (req, res) => {
   const meeting = await Meeting.findById(req.params.meetingId);
   if (!meeting) throw new ApiError(404, "Meeting not found");
 
+  const status = getMeetingStatus(meeting);
+  if (status !== "ongoing") {
+    throw new ApiError(400, status === "ended" ? "This meeting has ended" : "This meeting is not currently ongoing");
+  }
+
   const attendee = meeting.attendees.find((a) => String(a.user) === String(req.user._id));
   if (attendee) {
     attendee.status = "joined";
     attendee.joinedAt = new Date();
   } else {
     meeting.attendees.push({ user: req.user._id, status: "joined", joinedAt: new Date() });
-  }
-
-  if (meeting.status === "scheduled") {
-    meeting.status = "ongoing";
-    meeting.startedAt = meeting.startedAt || new Date();
   }
 
   await meeting.save();
@@ -175,7 +205,6 @@ module.exports = {
   getMeetingById,
   updateMeeting,
   cancelMeeting,
-  completeMeeting,
   joinMeeting,
   markAttendance,
   getAttendance,

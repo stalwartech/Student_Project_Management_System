@@ -19,12 +19,12 @@ const meetingSchema = new mongoose.Schema(
     title: { type: String, required: true },
     description: { type: String },
 
-    startedAt: { type: Date },
-    endedAt: { type: Date },
+    startedAt: { type: Date, required: true },
+    endedAt: { type: Date, required: true },
 
     status: {
       type: String,
-      enum: ["scheduled", "ongoing", "completed", "cancelled"],
+      enum: ["scheduled", "ongoing", "ended", "completed", "cancelled"],
       default: "scheduled",
     },
     duration: { type: Number, default: 0 },

@@ -122,7 +122,7 @@ export interface Feedback {
   createdAt: string;
 }
 
-export type MeetingStatus = "scheduled" | "ongoing" | "completed" | "cancelled";
+export type MeetingStatus = "scheduled" | "ongoing" | "ended" | "completed" | "cancelled";
 
 export interface MeetingAttendee {
   user: Pick<User, "_id" | "name" | "role"> | string;

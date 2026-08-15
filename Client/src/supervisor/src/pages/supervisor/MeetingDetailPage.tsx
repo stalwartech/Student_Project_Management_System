@@ -9,6 +9,8 @@ import { Badge, statusColor } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/utils/format";
 
+const statusLabel = (status: Meeting["status"]) => status.charAt(0).toUpperCase() + status.slice(1);
+
 export function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { show } = useToast();
@@ -25,6 +27,8 @@ export function MeetingDetailPage() {
 
   useEffect(() => {
     load();
+    const refreshTimer = window.setInterval(load, 30_000);
+    return () => window.clearInterval(refreshTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -33,17 +37,6 @@ export function MeetingDetailPage() {
     try {
       await meetingApi.markAttendance(id, userId, status);
       show("Attendance updated", "success");
-      load();
-    } catch (err) {
-      show(getErrorMessage(err), "error");
-    }
-  };
-
-  const complete = async () => {
-    if (!id) return;
-    try {
-      await meetingApi.complete(id);
-      show("Meeting marked complete", "success");
       load();
     } catch (err) {
       show(getErrorMessage(err), "error");
@@ -65,18 +58,15 @@ export function MeetingDetailPage() {
       </Link>
       <PageHeader
         title={meeting.title}
-        description={formatDateTime(meeting.startedAt)}
+        description={`${formatDateTime(meeting.startedAt)} – ${formatDateTime(meeting.endedAt)}`}
         actions={
           <>
-            <Badge color={statusColor(meeting.status)}>{meeting.status}</Badge>
-            {meeting.status !== "completed" && meeting.status !== "cancelled" && (
-              <Button variant="secondary" onClick={complete}>
-                Mark complete
-              </Button>
+            <Badge color={statusColor(meeting.status)}>{statusLabel(meeting.status)}</Badge>
+            {meeting.status === "ongoing" && (
+              <a href={meeting.meetingURL} target="_blank" rel="noreferrer">
+                <Button>Open meeting link</Button>
+              </a>
             )}
-            <a href={meeting.meetingURL} target="_blank" rel="noreferrer">
-              <Button>Open meeting link</Button>
-            </a>
           </>
         }
       />
