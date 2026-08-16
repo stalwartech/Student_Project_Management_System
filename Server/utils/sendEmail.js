@@ -51,12 +51,21 @@ const getTransporter = () => {
 const sendEmail = async ({ to, subject, html }) => {
   if (isSendGridConfigured()) {
     configureSendGrid();
-    const [response] = await sgMail.send({
-      to,
-      from: getSendGridSender(),
-      subject,
-      html,
-    });
+   try {
+  const [response] = await sgMail.send({
+    to,
+    from: getSendGridSender(),
+    subject,
+    html,
+  });
+  return response;
+} catch (error) {
+  console.error(
+    "SendGrid errors:",
+    JSON.stringify(error.response?.body?.errors, null, 2)
+  );
+  throw error;
+}
 
     return response;
   }
