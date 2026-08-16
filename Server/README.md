@@ -144,9 +144,10 @@ Also fixed:
 
 ## Not implemented (flagging rather than guessing)
 
-- Email sending is wired through `nodemailer` but falls back to console
-  logging if `SMTP_HOST`/`SMTP_USER` aren't set in `.env` — so the app runs
-  end-to-end without a real mail provider, but you'll want to plug one in
+- Email sending supports Twilio SendGrid when `SENDGRID_API_KEY` and
+  `SENDGRID_VERIFIED_SENDER` (or `EMAIL_FROM`) are set. SMTP via Nodemailer is
+  still supported as a fallback. With neither provider configured, emails are
+  logged to the console in development.
   before this is user-facing.
 - Google Meet integration: `meetingURL` is stored as a plain string the
   caller supplies. Actually generating a Meet link via Google's Calendar API

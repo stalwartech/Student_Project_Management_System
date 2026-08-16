@@ -1,6 +1,21 @@
 const nodemailer = require("nodemailer");
+const sgMail = require("@sendgrid/mail");
 
 let transporter;
+let sendGridConfigured = false;
+
+const getSendGridSender = () => process.env.SENDGRID_VERIFIED_SENDER || process.env.EMAIL_FROM;
+
+const isSendGridConfigured = () =>
+  Boolean(process.env.SENDGRID_API_KEY && getSendGridSender());
+
+const configureSendGrid = () => {
+  if (!sendGridConfigured) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    sendGridConfigured = true;
+  }
+};
+
 const getCredentials = () => ({
   user: process.env.SMTP_USER || process.env.EMAIL_USER,
   pass: process.env.SMTP_PASS || process.env.EMAIL_PASS,
@@ -34,6 +49,18 @@ const getTransporter = () => {
  * while you wire up a real SMTP/provider.
  */
 const sendEmail = async ({ to, subject, html }) => {
+  if (isSendGridConfigured()) {
+    configureSendGrid();
+    const [response] = await sgMail.send({
+      to,
+      from: getSendGridSender(),
+      subject,
+      html,
+    });
+
+    return response;
+  }
+
   if (!isTransportConfigured()) {
     console.log(`[sendEmail:dev-mode] to=${to} subject="${subject}"`);
     return { devMode: true };
@@ -47,10 +74,17 @@ const sendEmail = async ({ to, subject, html }) => {
 };
 
 const verifyEmailTransport = async () => {
+  if (isSendGridConfigured()) {
+    // SendGrid validates its API key and sender when a message is sent.
+    // Its mail API does not provide an SMTP-style connection verification.
+    return { ready: true, provider: "Twilio SendGrid" };
+  }
+
   if (!isTransportConfigured()) {
     return {
       ready: false,
-      reason: "SMTP_HOST plus SMTP_USER/SMTP_PASS (or EMAIL_USER/EMAIL_PASS) must be configured.",
+      reason:
+        "Set SENDGRID_API_KEY plus SENDGRID_VERIFIED_SENDER (or EMAIL_FROM), or configure SMTP_HOST plus SMTP_USER/SMTP_PASS (or EMAIL_USER/EMAIL_PASS).",
     };
   }
 
