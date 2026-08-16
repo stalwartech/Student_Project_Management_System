@@ -75,7 +75,7 @@ export interface ImportRowIssue {
 }
 
 export interface ImportSummary {
-  imported: { id: string; name: string; email: string }[];
+  imported: { id: string; name: string; email: string; matric?: string; staffId?: string }[];
   duplicates: ImportRowIssue[];
   invalid: ImportRowIssue[];
   missing: ImportRowIssue[];

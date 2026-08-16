@@ -116,7 +116,7 @@ function ImportSummaryView({ summary }: { summary: ImportSummary }) {
         <SummarySection title="Successfully imported" color="green">
           {summary.imported.map((r) => (
             <p key={r.id} className="text-sm text-gray-700">
-              {r.name} — {r.email}
+              {r.name} — {r.email}{r.staffId ? ` (${r.staffId})` : r.matric ? ` (${r.matric})` : ""}
             </p>
           ))}
         </SummarySection>
@@ -126,7 +126,7 @@ function ImportSummaryView({ summary }: { summary: ImportSummary }) {
         <SummarySection title="Duplicate records" color="amber">
           {summary.duplicates.map((r, i) => (
             <p key={i} className="text-sm text-gray-700">
-              Row {r.row}: {r.email ?? r.matric ?? r.staffId}
+              Row {r.row}: {r.reason ?? "Duplicate record"} ({r.email ?? r.matric ?? r.staffId})
             </p>
           ))}
         </SummarySection>

@@ -19,6 +19,7 @@ const logActivity = require("../utils/logActivity");
 
 const REQUIRED_STUDENT_FIELDS = ["Full Name", "Matric Number", "Email Address", "Gender", "Level", "Department"];
 const REQUIRED_SUPERVISOR_FIELDS = ["Title", "Full Name", "Staff ID", "Department", "Email Address", "Gender"];
+const normaliseKey = (value) => String(value || "").trim().toLowerCase();
 
 /**
  * Shared CSV import routine for both students and supervisors.
@@ -30,12 +31,12 @@ const importUsers = async ({ rows, role, requiredFields, req }) => {
   const summary = { imported: [], duplicates: [], invalid: [], missing: [] };
 
   // Pre-fetch existing emails/matrics/staffIds once instead of a query per row.
-  const existingEmails = new Set((await User.find({}, "email")).map((u) => u.email.toLowerCase()));
+  const existingEmails = new Set((await User.find({}, "email")).map((u) => normaliseKey(u.email)));
   const existingMatrics = new Set(
-    (await User.find({ matric: { $exists: true } }, "matric")).map((u) => u.matric)
+    (await User.find({ matric: { $exists: true } }, "matric")).map((u) => normaliseKey(u.matric))
   );
   const existingStaffIds = new Set(
-    (await User.find({ staffId: { $exists: true } }, "staffId")).map((u) => u.staffId)
+    (await User.find({ staffId: { $exists: true } }, "staffId")).map((u) => normaliseKey(u.staffId))
   );
 
   const seenEmailsInFile = new Set();
@@ -50,28 +51,30 @@ const importUsers = async ({ rows, role, requiredFields, req }) => {
       continue;
     }
 
-    const email = row["Email Address"].trim().toLowerCase();
+    const email = normaliseKey(row["Email Address"]);
     if (!isValidEmail(email)) {
       summary.invalid.push({ row: rowNumber, reason: "Invalid email format" });
       continue;
     }
 
     const idField = role === "student" ? row["Matric Number"].trim() : row["Staff ID"].trim();
+    const idLookupKey = normaliseKey(idField);
     const idKey = role === "student" ? "matric" : "staffId";
     const existingIdSet = role === "student" ? existingMatrics : existingStaffIds;
 
-    if (
-      existingEmails.has(email) ||
-      seenEmailsInFile.has(email) ||
-      existingIdSet.has(idField) ||
-      seenIdsInFile.has(idField)
-    ) {
-      summary.duplicates.push({ row: rowNumber, email, [idKey]: idField });
+    const duplicateReasons = [];
+    if (existingEmails.has(email)) duplicateReasons.push("Email address already exists");
+    else if (seenEmailsInFile.has(email)) duplicateReasons.push("Email address is repeated in this file");
+    if (existingIdSet.has(idLookupKey)) duplicateReasons.push(`${role === "student" ? "Matric number" : "Staff ID"} already exists`);
+    else if (seenIdsInFile.has(idLookupKey)) duplicateReasons.push(`${role === "student" ? "Matric number" : "Staff ID"} is repeated in this file`);
+
+    if (duplicateReasons.length) {
+      summary.duplicates.push({ row: rowNumber, email, [idKey]: idField, reason: duplicateReasons.join("; ") });
       continue;
     }
 
     seenEmailsInFile.add(email);
-    seenIdsInFile.add(idField);
+    seenIdsInFile.add(idLookupKey);
 
     const tempPassword = crypto.randomBytes(16).toString("hex");
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
@@ -101,7 +104,12 @@ const importUsers = async ({ rows, role, requiredFields, req }) => {
 
   if (toCreate.length) {
     const created = await User.insertMany(toCreate, { ordered: false });
-    summary.imported = created.map((u) => ({ id: u._id, name: u.name, email: u.email }));
+    summary.imported = created.map((u) => ({
+      id: u._id,
+      name: u.name,
+      email: u.email,
+      ...(role === "student" ? { matric: u.matric } : { staffId: u.staffId }),
+    }));
 
     // Students receive their activation email immediately. Supervisors request
     // their OTP themselves from the activation screen using a staff ID or
