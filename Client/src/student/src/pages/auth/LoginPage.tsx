@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { GraduationCap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/api/client";
 import { useForm } from "@/hooks/useForm";
@@ -44,40 +45,58 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="card w-full max-w-sm p-6">
-        <h1 className="text-lg font-semibold text-gray-900">Sign in</h1>
-        <p className="mt-1 text-sm text-gray-500">Student Project Management System</p>
+      <div className="w-full max-w-sm">
+        {/* Single card */}
+        <div className="w-full rounded-2xl border border-gray-100 bg-white p-8 shadow-[0_20px_60px_-15px_rgba(11,27,59,0.35)]">
+          {/* Logo */}
+          <div className="mb-6 flex flex-col items-center text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0B1B3B]">
+              <GraduationCap className="h-7 w-7 text-white" />
+            </div>
+            <p className="mt-3 text-lg font-bold text-[#0B1B3B]">SPMS</p>
+            <p className="text-xs text-gray-500">Student Project Management System</p>
+          </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <TextField
-            label="Matric number or email"
-            placeholder="e.g. 2020/1/12345 or you@school.edu"
-            value={values.identifier}
-            onChange={update("identifier")}
-            required
-          />
-          <TextField
-            label="Password"
-            type="password"
-            value={values.password}
-            onChange={update("password")}
-            required
-          />
+          <div className="border-t border-gray-100 pt-6">
+            <h1 className="text-lg font-semibold text-gray-900">Welcome back!</h1>
+            <p className="mt-1 text-sm text-gray-500">Login to continue</p>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <TextField
+                label="Matric number or email"
+                placeholder="e.g. 2020/1/12345 or you@school.edu"
+                value={values.identifier}
+                onChange={update("identifier")}
+                required
+              />
+              <TextField
+                label="Password"
+                type="password"
+                value={values.password}
+                onChange={update("password")}
+                required
+              />
 
-          <Button type="submit" className="w-full" loading={loading}>
-            Sign in
-          </Button>
-        </form>
+              {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="mt-4 flex justify-between text-sm">
-          <Link to="/student/activate" className="text-brand-600 hover:underline">
-            Activate account
-          </Link>
-          <Link to="/student/forgot-password" className="text-brand-600 hover:underline">
-            Forgot password?
-          </Link>
+              <div className="flex justify-end text-sm">
+                <Link to="/student/forgot-password" className="text-brand-600 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+
+              <Button type="submit" className="w-full bg-[#0B1B3B] hover:bg-[#152750]" loading={loading}>
+                Sign in
+              </Button>
+            </form>
+
+            <p className="mt-4 text-center text-sm text-gray-500">
+              Need to set up your account?{" "}
+              <Link to="/student/activate" className="text-brand-600 hover:underline">
+                Activate account
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
