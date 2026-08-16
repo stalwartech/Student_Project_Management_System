@@ -35,6 +35,9 @@ export function BulkImportPage() {
     try {
       const res = tab === "students" ? await importApi.students(file) : await importApi.supervisors(file);
       setSummary(res.data.data);
+      // Prevent the Import button from submitting the same CSV again after a
+      // successful upload, which would correctly be reported as duplicates.
+      setFile(null);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -62,7 +65,12 @@ export function BulkImportPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
-          <Dropzone accept=".csv" hint="CSV up to 5MB" onFileSelected={setFile} selectedFileName={file?.name} />
+          <Dropzone
+            accept=".csv"
+            hint="CSV up to 5MB"
+            onFileSelected={setFile}
+            selectedFileName={file?.name}
+          />
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

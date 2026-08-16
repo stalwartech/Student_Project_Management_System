@@ -40,6 +40,9 @@ export function Dropzone({ accept, hint, onFileSelected, selectedFileName }: Dro
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) onFileSelected(file);
+          // Clear the native input after copying the File into React state.
+          // This lets a user select a corrected CSV with the same filename.
+          e.currentTarget.value = "";
         }}
       />
       {selectedFileName ? (
